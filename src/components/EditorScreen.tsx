@@ -33,6 +33,7 @@ export function EditorScreen({
 }: EditorScreenProps) {
   const [currentEdits, setCurrentEdits] = useState<EditValues>(editHistory[historyIndex]);
   const [showCropModal, setShowCropModal] = useState(false);
+  const [isCropMode, setIsCropMode] = useState(false);
   const [showResizeModal, setShowResizeModal] = useState(false);
   const [showImageResizeModal, setShowImageResizeModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
@@ -108,7 +109,15 @@ export function EditorScreen({
     setEditHistory(newHistory);
     setHistoryIndex(newHistory.length - 1);
     
-    setShowCropModal(false);
+    setIsCropMode(false);
+  };
+
+  const handleCropCancel = () => {
+    setIsCropMode(false);
+  };
+
+  const toggleCropMode = () => {
+    setIsCropMode(!isCropMode);
   };
 
   const handleResizeApply = (frameData: {
@@ -285,12 +294,22 @@ export function EditorScreen({
       {/* Main Content */}
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
         {/* Canvas Area */}
-        <div className="flex-1 flex items-center justify-center p-4 bg-slate-50 overflow-auto">
-          <ImageCanvas
-            imageUrl={imageState.original}
-            edits={currentEdits}
-            onProcessed={setProcessedImage}
-          />
+        <div className={`flex-1 flex items-center justify-center bg-slate-50 overflow-auto relative ${isCropMode ? 'p-0' : 'p-4'}`}>
+          {isCropMode ? (
+            <CropRotateModal
+              imageUrl={imageState.original}
+              currentEdits={currentEdits}
+              onRotateApply={handleCropRotateApply}
+              onClose={handleCropCancel}
+              isInlineMode={true}
+            />
+          ) : (
+            <ImageCanvas
+              imageUrl={imageState.original}
+              edits={currentEdits}
+              onProcessed={setProcessedImage}
+            />
+          )}
         </div>
 
         {/* Controls Sidebar */}
@@ -311,9 +330,10 @@ export function EditorScreen({
               <EditorControls
                 edits={currentEdits}
                 onEditChange={updateEdit}
-                onOpenCrop={() => setShowCropModal(true)}
+                onOpenCrop={toggleCropMode}
                 onOpenResize={() => setShowResizeModal(true)}
                 onOpenImageResize={() => setShowImageResizeModal(true)}
+                isCropMode={isCropMode}
               />
             </TabsContent>
             

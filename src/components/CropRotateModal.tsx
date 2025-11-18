@@ -26,6 +26,7 @@ interface CropRotateModalProps {
         rotation: number
     ) => void;
     onClose: () => void;
+    isInlineMode?: boolean;
 }
 
 export function CropRotateModal({
@@ -34,6 +35,7 @@ export function CropRotateModal({
     onApply,
     onRotateApply,
     onClose,
+    isInlineMode = false,
 }: CropRotateModalProps) {
     const [rotation, setRotation] = useState(currentEdits.rotation);
     const [cropArea, setCropArea] = useState({
@@ -63,8 +65,8 @@ export function CropRotateModal({
             const canvas = canvasRef.current;
             if (!canvas) return;
 
-            // Set canvas size
-            const maxSize = 500;
+            // Set canvas size to maximize available space
+            const maxSize = isInlineMode ? 1200 : 500;
             const scale = Math.min(
                 maxSize / img.width,
                 maxSize / img.height,
@@ -89,7 +91,7 @@ export function CropRotateModal({
         };
 
         img.src = imageUrl;
-    }, [imageUrl, currentEdits.crop]);
+    }, [imageUrl, currentEdits.crop, isInlineMode]);
 
     const drawCanvas = useCallback(() => {
         const canvas = canvasRef.current;
@@ -422,114 +424,138 @@ export function CropRotateModal({
         onClose();
     };
 
+    const content = (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 h-full">
+            {/* Canvas */}
+            <div className="md:col-span-2 flex justify-center items-center bg-slate-100 rounded-lg p-2 min-h-0">
+                <canvas
+                    ref={canvasRef}
+                    onMouseDown={handleMouseDown}
+                    onMouseMove={handleCanvasMouseMove}
+                    className="cursor-crosshair rounded shadow-lg"
+                    style={{ 
+                        maxWidth: '100%', 
+                        maxHeight: '100%',
+                        width: 'auto',
+                        height: 'auto',
+                        objectFit: 'contain'
+                    }}
+                />
+            </div>
+
+            {/* Controls */}
+            <div className="md:col-span-1 space-y-4 flex flex-col">
+                {/* Rotation Control */}
+                <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                        <Label className="flex items-center gap-2">
+                            <RotateCw className="w-4 h-4" />
+                            Xoay
+                        </Label>
+                        <span className="text-sm text-slate-600">
+                            {rotation}°
+                        </span>
+                    </div>
+                    <Slider
+                        value={[rotation]}
+                        onValueChange={([value]: number[]) =>
+                            setRotation(value)
+                        }
+                        min={0}
+                        max={360}
+                        step={1}
+                        className="w-full"
+                    />
+                    <div className="flex gap-2 justify-center flex-wrap">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                                setRotation((rotation - 90 + 360) % 360)
+                            }
+                        >
+                            -90°
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                                setRotation((rotation + 90) % 360)
+                            }
+                        >
+                            +90°
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setRotation(0)}
+                        >
+                            Đặt lại xoay
+                        </Button>
+                    </div>
+                </div>
+
+                {/* Reset crop button */}
+                <div className="flex justify-center">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                            setCropArea({
+                                x: 10,
+                                y: 10,
+                                width: 80,
+                                height: 80,
+                            })
+                        }
+                    >
+                        Đặt lại vùng cắt
+                    </Button>
+                </div>
+
+                <div className="flex-grow"></div>
+
+                <p className="text-sm text-slate-600 text-center bg-blue-50 p-2 rounded-lg">
+                    💡 Kéo chuột trên ảnh để chọn vùng cắt. Xoay ảnh bằng thanh
+                    trượt.
+                </p>
+            </div>
+        </div>
+    );
+
+    const footer = (
+        <>
+            <Button variant="outline" onClick={onClose}>
+                <X className="w-4 h-4 mr-2" />
+                Hủy
+            </Button>
+            <Button onClick={handleApply}>
+                <Check className="w-4 h-4 mr-2" />
+                Áp dụng
+            </Button>
+        </>
+    );
+
+    if (isInlineMode) {
+        return (
+            <div className="w-full h-full flex flex-col bg-white">
+                <div className="border-b px-4 py-3">
+                    <h3 className="text-lg font-semibold">Cắt & Xoay ảnh</h3>
+                </div>
+                <div className="flex-1 p-4 overflow-auto">{content}</div>
+                <div className="border-t px-4 py-3 flex justify-end gap-2">{footer}</div>
+            </div>
+        );
+    }
+
     return (
         <Dialog open={true} onOpenChange={onClose}>
             <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>Cắt & Xoay ảnh</DialogTitle>
                 </DialogHeader>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                    {/* Canvas */}
-                    <div className="md:col-span-2 flex justify-center items-center bg-slate-100 rounded-lg p-4">
-                        <canvas
-                            ref={canvasRef}
-                            onMouseDown={handleMouseDown}
-                            onMouseMove={handleCanvasMouseMove}
-                            className="cursor-crosshair rounded shadow-lg"
-                            style={{ maxWidth: '100%', height: 'auto' }}
-                        />
-                    </div>
-
-                    {/* Controls */}
-                    <div className="md:col-span-1 space-y-6 flex flex-col">
-                        {/* Rotation Control */}
-                        <div className="space-y-3">
-                            <div className="flex items-center justify-between">
-                                <Label className="flex items-center gap-2">
-                                    <RotateCw className="w-4 h-4" />
-                                    Xoay
-                                </Label>
-                                <span className="text-sm text-slate-600">
-                                    {rotation}°
-                                </span>
-                            </div>
-                            <Slider
-                                value={[rotation]}
-                                onValueChange={([value]: number[]) =>
-                                    setRotation(value)
-                                }
-                                min={0}
-                                max={360}
-                                step={1}
-                                className="w-full"
-                            />
-                            <div className="flex gap-2 justify-center flex-wrap">
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() =>
-                                        setRotation((rotation - 90 + 360) % 360)
-                                    }
-                                >
-                                    -90°
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() =>
-                                        setRotation((rotation + 90) % 360)
-                                    }
-                                >
-                                    +90°
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setRotation(0)}
-                                >
-                                    Đặt lại xoay
-                                </Button>
-                            </div>
-                        </div>
-
-                        {/* Reset crop button */}
-                        <div className="flex justify-center">
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() =>
-                                    setCropArea({
-                                        x: 10,
-                                        y: 10,
-                                        width: 80,
-                                        height: 80,
-                                    })
-                                }
-                            >
-                                Đặt lại vùng cắt
-                            </Button>
-                        </div>
-
-                        <div className="flex-grow"></div>
-
-                        <p className="text-sm text-slate-600 text-center bg-blue-50 p-3 rounded-lg">
-                            💡 Kéo chuột trên ảnh để chọn vùng cắt. Xoay ảnh
-                            bằng thanh trượt.
-                        </p>
-                    </div>
-                </div>
-
-                <DialogFooter>
-                    <Button variant="outline" onClick={onClose}>
-                        <X className="w-4 h-4 mr-2" />
-                        Hủy
-                    </Button>
-                    <Button onClick={handleApply}>
-                        <Check className="w-4 h-4 mr-2" />
-                        Áp dụng
-                    </Button>
-                </DialogFooter>
+                {content}
+                <DialogFooter>{footer}</DialogFooter>
             </DialogContent>
         </Dialog>
     );

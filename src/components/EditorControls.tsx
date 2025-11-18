@@ -12,9 +12,10 @@ interface EditorControlsProps {
   onOpenCrop: () => void;
   onOpenResize: () => void;
   onOpenImageResize: () => void;
+  isCropMode?: boolean;
 }
 
-export function EditorControls({ edits, onEditChange, onOpenCrop, onOpenResize, onOpenImageResize }: EditorControlsProps) {
+export function EditorControls({ edits, onEditChange, onOpenCrop, onOpenResize, onOpenImageResize, isCropMode = false }: EditorControlsProps) {
   return (
     <div className="p-6 space-y-6">
       <div>
@@ -31,7 +32,7 @@ export function EditorControls({ edits, onEditChange, onOpenCrop, onOpenResize, 
           </div>
           <Slider
             value={[edits.blur]}
-            onValueChange={([value]) => onEditChange('blur', value)}
+            onValueChange={([value]: number[]) => onEditChange('blur', value)}
             min={0}
             max={20}
             step={1}
@@ -48,7 +49,7 @@ export function EditorControls({ edits, onEditChange, onOpenCrop, onOpenResize, 
           <Switch
             id="grayscale"
             checked={edits.grayscale}
-            onCheckedChange={(checked) => onEditChange('grayscale', checked)}
+            onCheckedChange={(checked: boolean) => onEditChange('grayscale', checked)}
           />
         </div>
 
@@ -65,7 +66,7 @@ export function EditorControls({ edits, onEditChange, onOpenCrop, onOpenResize, 
           </div>
           <Slider
             value={[edits.brightness]}
-            onValueChange={([value]) => onEditChange('brightness', value)}
+            onValueChange={([value]: number[]) => onEditChange('brightness', value)}
             min={0}
             max={200}
             step={1}
@@ -84,7 +85,7 @@ export function EditorControls({ edits, onEditChange, onOpenCrop, onOpenResize, 
           </div>
           <Slider
             value={[edits.contrast]}
-            onValueChange={([value]) => onEditChange('contrast', value)}
+            onValueChange={([value]: number[]) => onEditChange('contrast', value)}
             min={0}
             max={200}
             step={1}
@@ -121,12 +122,12 @@ export function EditorControls({ edits, onEditChange, onOpenCrop, onOpenResize, 
         <div className="space-y-3">
           <Label>Biến đổi</Label>
           <Button
-            variant="outline"
+            variant={isCropMode ? 'default' : 'outline'}
             onClick={onOpenCrop}
             className="w-full"
           >
             <Crop className="w-4 h-4 mr-2" />
-            Cắt & Xoay
+            {isCropMode ? 'Đang cắt & xoay...' : 'Cắt & Xoay'}
           </Button>
           <Button
             variant="outline"
