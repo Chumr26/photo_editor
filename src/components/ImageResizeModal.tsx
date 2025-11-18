@@ -213,7 +213,7 @@ export function ImageResizeModal({
           </div>
 
           {/* Mode Tabs */}
-          <Tabs value={mode} onValueChange={(v) => setMode(v as 'pixels' | 'percentage')}>
+          <Tabs value={mode} onValueChange={(v: string) => setMode(v as 'pixels' | 'percentage')}>
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="pixels">Pixels</TabsTrigger>
               <TabsTrigger value="percentage">Phần trăm</TabsTrigger>
