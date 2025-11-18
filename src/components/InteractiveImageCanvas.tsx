@@ -31,8 +31,12 @@ export function InteractiveImageCanvas({
     height: 80,
   });
   const [isDragging, setIsDragging] = useState(false);
-  const [draggedPart, setDraggedPart] = useState<'tl' | 'tr' | 'bl' | 'br' | 'box' | null>(null);
+  const [draggedPart, setDraggedPart] = useState<'tl' | 'tr' | 'bl' | 'br' | 't' | 'r' | 'b' | 'l' | 'box' | null>(null);
   const [dragStartOffset, setDragStartOffset] = useState({ x: 0, y: 0 });
+  
+  // Use refs for immediate access during drag operations
+  const draggedPartRef = useRef<'tl' | 'tr' | 'bl' | 'br' | 't' | 'r' | 'b' | 'l' | 'box' | null>(null);
+  const dragStartOffsetRef = useRef({ x: 0, y: 0 });
 
   // Load image
   useEffect(() => {
@@ -263,6 +267,7 @@ export function InteractiveImageCanvas({
     const handleSize = 10;
     const handleMargin = 5;
     const effectiveHandleSize = handleSize + handleMargin;
+    const edgeMargin = 8; // Margin for edge detection
 
     const cropX = (cropArea.x / 100) * canvas.width;
     const cropY = (cropArea.y / 100) * canvas.height;
@@ -272,6 +277,7 @@ export function InteractiveImageCanvas({
     const x = (xPercent / 100) * canvas.width;
     const y = (yPercent / 100) * canvas.height;
 
+    // Check corners first (higher priority than edges)
     if (
       x >= cropX - effectiveHandleSize / 2 &&
       x <= cropX + effectiveHandleSize / 2 &&
@@ -300,6 +306,13 @@ export function InteractiveImageCanvas({
       y <= cropY + cropH + effectiveHandleSize / 2
     ) return 'br';
 
+    // Check edges
+    if (Math.abs(y - cropY) <= edgeMargin && x >= cropX && x <= cropX + cropW) return 't';
+    if (Math.abs(x - (cropX + cropW)) <= edgeMargin && y >= cropY && y <= cropY + cropH) return 'r';
+    if (Math.abs(y - (cropY + cropH)) <= edgeMargin && x >= cropX && x <= cropX + cropW) return 'b';
+    if (Math.abs(x - cropX) <= edgeMargin && y >= cropY && y <= cropY + cropH) return 'l';
+
+    // Check if inside box
     if (x > cropX && x < cropX + cropW && y > cropY && y < cropY + cropH) {
       return 'box';
     }
@@ -322,6 +335,10 @@ export function InteractiveImageCanvas({
       canvas.style.cursor = 'nwse-resize';
     } else if (handle === 'tr' || handle === 'bl') {
       canvas.style.cursor = 'nesw-resize';
+    } else if (handle === 't' || handle === 'b') {
+      canvas.style.cursor = 'ns-resize';
+    } else if (handle === 'l' || handle === 'r') {
+      canvas.style.cursor = 'ew-resize';
     } else if (handle === 'box') {
       canvas.style.cursor = 'move';
     } else {
@@ -342,9 +359,14 @@ export function InteractiveImageCanvas({
     const handle = getHandleAt(canvas, x, y);
     setDraggedPart(handle);
     setIsDragging(true);
+    
+    // Store in ref for immediate access
+    draggedPartRef.current = handle;
 
     if (handle === 'box') {
-      setDragStartOffset({ x: x - cropArea.x, y: y - cropArea.y });
+      const offset = { x: x - cropArea.x, y: y - cropArea.y };
+      setDragStartOffset(offset);
+      dragStartOffsetRef.current = offset;
     } else if (!handle) {
       setCropArea({ x, y, width: 0, height: 0 });
     }
@@ -355,7 +377,7 @@ export function InteractiveImageCanvas({
 
       setCropArea((prev) => {
         let { x: prevX, y: prevY, width: prevW, height: prevH } = prev;
-        const currentDraggedPart = draggedPart || handle;
+        const currentDraggedPart = draggedPartRef.current;
 
         switch (currentDraggedPart) {
           case 'tl':
@@ -378,9 +400,23 @@ export function InteractiveImageCanvas({
             prevW = newX - prevX;
             prevH = newY - prevY;
             break;
+          case 't':
+            prevH += prevY - newY;
+            prevY = newY;
+            break;
+          case 'r':
+            prevW = newX - prevX;
+            break;
+          case 'b':
+            prevH = newY - prevY;
+            break;
+          case 'l':
+            prevW += prevX - newX;
+            prevX = newX;
+            break;
           case 'box':
-            prevX = newX - dragStartOffset.x;
-            prevY = newY - dragStartOffset.y;
+            prevX = newX - dragStartOffsetRef.current.x;
+            prevY = newY - dragStartOffsetRef.current.y;
             break;
           default:
             return {
@@ -410,6 +446,7 @@ export function InteractiveImageCanvas({
     const handleWindowMouseUp = () => {
       setIsDragging(false);
       setDraggedPart(null);
+      draggedPartRef.current = null;
       window.removeEventListener('mousemove', handleWindowMouseMove);
       window.removeEventListener('mouseup', handleWindowMouseUp);
     };

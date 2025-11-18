@@ -68,6 +68,105 @@ AI: "I'd like to clarify a few things about the filter feature:
 - Add proper error handling
 - Keep components modular and reusable
 
+### File Organization & Component Structure
+
+#### Component Size Guidelines
+- **Maximum file size**: 200-300 lines for components
+- **Single Responsibility**: Each component should do ONE thing well
+- **Extract when needed**: If a component grows beyond 250 lines, consider breaking it down
+
+#### Directory Structure
+```
+src/
+├── components/          # UI Components
+│   ├── editor/         # Editor-specific components (small, focused)
+│   ├── ui/             # Reusable UI components (shadcn/ui)
+│   └── [feature]/      # Feature-specific components
+├── hooks/              # Custom React hooks
+│   ├── useImageLoader.ts
+│   ├── useCropInteraction.ts
+│   └── useEditHistory.ts
+├── utils/              # Utility functions
+│   ├── canvas.utils.ts    # Canvas operations
+│   ├── crop.utils.ts      # Crop calculations
+│   └── image.utils.ts     # Image processing
+├── types/              # TypeScript type definitions
+│   └── editor.types.ts
+└── styles/             # Global styles
+```
+
+#### When to Extract Components
+Extract a component when:
+1. **Repeated UI patterns**: Same UI structure used multiple times
+2. **Logical grouping**: Related controls/features that work together
+3. **File size**: Component exceeds 250 lines
+4. **Complex logic**: Component handles multiple concerns
+5. **Testing needs**: Need to test a specific piece independently
+
+#### When to Extract Utilities
+Create utility functions when:
+1. **Pure logic**: Function doesn't need React hooks or state
+2. **Reusability**: Logic used in multiple places
+3. **Complex calculations**: Math, transformations, validations
+4. **Testability**: Need to unit test logic separately
+
+#### When to Extract Hooks
+Create custom hooks when:
+1. **Stateful logic**: Managing related state and side effects
+2. **Reusable behavior**: Same pattern used across components
+3. **Complex interactions**: Multiple event handlers and state updates
+4. **Separation of concerns**: UI logic separate from business logic
+
+#### Example: Breaking Down Large Components
+❌ **Bad** - One large component (500+ lines):
+```tsx
+function EditorControls() {
+  // 100 lines of state
+  // 200 lines of filter controls
+  // 100 lines of transform controls
+  // 100 lines of tool buttons
+  // Result: Hard to maintain, test, and understand
+}
+```
+
+✅ **Good** - Multiple focused components:
+```tsx
+// EditorControls.tsx (50 lines) - Orchestration
+function EditorControls() {
+  return (
+    <div>
+      <FilterControls {...props} />
+      <TransformControls {...props} />
+      <ToolButtons {...props} />
+    </div>
+  );
+}
+
+// FilterControls.tsx (80 lines) - Filter-specific
+// TransformControls.tsx (60 lines) - Transform-specific
+// ToolButtons.tsx (40 lines) - Tool selection
+```
+
+#### Naming Conventions
+- **Components**: PascalCase (e.g., `FilterControls`, `CropModeControls`)
+- **Hooks**: camelCase with `use` prefix (e.g., `useImageLoader`, `useCropInteraction`)
+- **Utilities**: camelCase with descriptive names (e.g., `applyFilters`, `calculateCanvasDimensions`)
+- **Types**: PascalCase with descriptive names (e.g., `EditValues`, `CropArea`)
+- **Files**: Match the export name (e.g., `FilterControls.tsx`, `useImageLoader.ts`)
+
+#### Code Organization Within Files
+1. **Imports**: Group by external, internal, types
+2. **Types/Interfaces**: Define at top of file
+3. **Component/Function**: Main export
+4. **Helper functions**: Below main export (or extract to utils)
+5. **Styles**: Tailwind classes inline or separate file
+
+#### Documentation
+- Add JSDoc comments to utility functions
+- Add file-level comments explaining purpose
+- Document complex algorithms or non-obvious logic
+- Keep comments concise and meaningful
+
 ### Testing Requirements
 - Test in the browser after implementation
 - Check responsive design (mobile, tablet, desktop)
