@@ -1,10 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ImageState, EditValues } from '../App';
 import { EditorControls } from './EditorControls';
-import { ImageCanvas } from './ImageCanvas';
-import { CropRotateModal } from './CropRotateModal';
-import { ResizeFrameModal } from './ResizeFrameModal';
-import { ImageResizeModal } from './ImageResizeModal';
+import { InteractiveImageCanvas } from './InteractiveImageCanvas';
 import { ExportModal } from './ExportModal';
 import { AIChatPanel } from './AIChatPanel';
 import { AISettingsModal, AISettings } from './AISettingsModal';
@@ -32,9 +29,7 @@ export function EditorScreen({
   onReset,
 }: EditorScreenProps) {
   const [currentEdits, setCurrentEdits] = useState<EditValues>(editHistory[historyIndex]);
-  const [showCropModal, setShowCropModal] = useState(false);
-  const [showResizeModal, setShowResizeModal] = useState(false);
-  const [showImageResizeModal, setShowImageResizeModal] = useState(false);
+  const [editMode, setEditMode] = useState<'none' | 'crop' | 'rotate' | 'resize'>('none');
   const [showExportModal, setShowExportModal] = useState(false);
   const [processedImage, setProcessedImage] = useState<string>('');
   const [showAISettings, setShowAISettings] = useState(false);
@@ -95,68 +90,12 @@ export function EditorScreen({
     setHistoryIndex(0);
   };
 
-  const handleCropRotateApply = (
-    cropData: { x: number; y: number; width: number; height: number },
-    rotation: number
-  ) => {
-    // Update both crop and rotation
-    const newEdits = { ...currentEdits, crop: cropData, rotation };
-    setCurrentEdits(newEdits);
-    
-    const newHistory = editHistory.slice(0, historyIndex + 1);
-    newHistory.push(newEdits);
-    setEditHistory(newHistory);
-    setHistoryIndex(newHistory.length - 1);
-    
-    setShowCropModal(false);
+  const handleCropChange = (crop: { x: number; y: number; width: number; height: number }) => {
+    updateEdit('crop', crop);
   };
 
-  const handleResizeApply = (frameData: {
-    width: number;
-    height: number;
-    backgroundColor: string;
-    maintainAspectRatio: boolean;
-  }) => {
-    // Update frame settings
-    const newEdits = { 
-      ...currentEdits, 
-      frame: {
-        width: frameData.width,
-        height: frameData.height,
-        backgroundColor: frameData.backgroundColor,
-      }
-    };
-    setCurrentEdits(newEdits);
-    
-    const newHistory = editHistory.slice(0, historyIndex + 1);
-    newHistory.push(newEdits);
-    setEditHistory(newHistory);
-    setHistoryIndex(newHistory.length - 1);
-    
-    setShowResizeModal(false);
-  };
-
-  const handleImageResizeApply = (resizeData: {
-    width: number;
-    height: number;
-    mode: 'pixels' | 'percentage';
-  }) => {
-    // Update image resize settings
-    const newEdits = { 
-      ...currentEdits, 
-      resize: {
-        width: resizeData.width,
-        height: resizeData.height,
-      }
-    };
-    setCurrentEdits(newEdits);
-    
-    const newHistory = editHistory.slice(0, historyIndex + 1);
-    newHistory.push(newEdits);
-    setEditHistory(newHistory);
-    setHistoryIndex(newHistory.length - 1);
-    
-    setShowImageResizeModal(false);
+  const handleRotationChange = (rotation: number) => {
+    updateEdit('rotation', rotation);
   };
 
   const handleAISaveSettings = (settings: AISettings) => {
@@ -286,10 +225,13 @@ export function EditorScreen({
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
         {/* Canvas Area */}
         <div className="flex-1 flex items-center justify-center p-4 bg-slate-50 overflow-auto">
-          <ImageCanvas
+          <InteractiveImageCanvas
             imageUrl={imageState.original}
             edits={currentEdits}
             onProcessed={setProcessedImage}
+            editMode={editMode}
+            onCropChange={handleCropChange}
+            onRotationChange={handleRotationChange}
           />
         </div>
 
@@ -311,9 +253,8 @@ export function EditorScreen({
               <EditorControls
                 edits={currentEdits}
                 onEditChange={updateEdit}
-                onOpenCrop={() => setShowCropModal(true)}
-                onOpenResize={() => setShowResizeModal(true)}
-                onOpenImageResize={() => setShowImageResizeModal(true)}
+                editMode={editMode}
+                onEditModeChange={setEditMode}
               />
             </TabsContent>
             
@@ -329,33 +270,6 @@ export function EditorScreen({
       </div>
 
       {/* Modals */}
-      {showCropModal && (
-        <CropRotateModal
-          imageUrl={imageState.original}
-          currentEdits={currentEdits}
-          onRotateApply={handleCropRotateApply}
-          onClose={() => setShowCropModal(false)}
-        />
-      )}
-
-      {showResizeModal && (
-        <ResizeFrameModal
-          imageUrl={imageState.original}
-          currentEdits={currentEdits}
-          onResizeApply={handleResizeApply}
-          onClose={() => setShowResizeModal(false)}
-        />
-      )}
-
-      {showImageResizeModal && (
-        <ImageResizeModal
-          imageUrl={imageState.original}
-          currentEdits={currentEdits}
-          onResizeApply={handleImageResizeApply}
-          onClose={() => setShowImageResizeModal(false)}
-        />
-      )}
-
       {showExportModal && (
         <ExportModal
           processedImage={processedImage}
