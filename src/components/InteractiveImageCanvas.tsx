@@ -8,6 +8,7 @@ interface InteractiveImageCanvasProps {
   editMode: 'none' | 'crop' | 'rotate' | 'resize';
   onCropChange?: (crop: { x: number; y: number; width: number; height: number }) => void;
   onRotationChange?: (rotation: number) => void;
+  onEditEnd?: (action: string) => void;
 }
 
 export function InteractiveImageCanvas({
@@ -17,6 +18,7 @@ export function InteractiveImageCanvas({
   editMode,
   onCropChange,
   onRotationChange,
+  onEditEnd,
 }: InteractiveImageCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -626,6 +628,9 @@ export function InteractiveImageCanvas({
       transformTypeRef.current = null;
       window.removeEventListener('mousemove', handleWindowMouseMove);
       window.removeEventListener('mouseup', handleWindowMouseUp);
+      if (onEditEnd) {
+        onEditEnd('Crop');
+      }
     };
 
     window.addEventListener('mousemove', handleWindowMouseMove);

@@ -5,6 +5,7 @@ import { InteractiveImageCanvas } from './InteractiveImageCanvas';
 import { ExportModal } from './ExportModal';
 import { AIChatPanel } from './AIChatPanel';
 import { AISettingsModal, AISettings } from './AISettingsModal';
+import HistoryPanel from './HistoryPanel';
 import { Button } from './ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import {
@@ -58,6 +59,9 @@ export function EditorScreen({
                   endpoint: '',
               };
     });
+    const [history, setHistory] = useState<{ id: number; action: string }[]>([]);
+    const [fullHistory, setFullHistory] = useState<{ id: number; action: string }[]>([]);
+    const [showFullHistory, setShowFullHistory] = useState(false);
 
     useEffect(() => {
         setCurrentEdits(editHistory[historyIndex]);
@@ -66,12 +70,50 @@ export function EditorScreen({
     const updateEdit = (key: keyof EditValues, value: any) => {
         const newEdits = { ...currentEdits, [key]: value };
         setCurrentEdits(newEdits);
+    };
 
-        // Add to history
-        const newHistory = editHistory.slice(0, historyIndex + 1);
-        newHistory.push(newEdits);
-        setEditHistory(newHistory);
-        setHistoryIndex(newHistory.length - 1);
+    const commitEdit = (key: keyof EditValues, value: any) => {
+        const newEdits = { ...currentEdits, [key]: value };
+        
+        const newEditHistory = editHistory.slice(0, historyIndex + 1);
+        newEditHistory.push(newEdits);
+        setEditHistory(newEditHistory);
+        setHistoryIndex(newEditHistory.length - 1);
+        
+        addHistoryAction(key.charAt(0).toUpperCase() + key.slice(1));
+    }
+    
+    const addHistoryAction = (action: string) => {
+        const newFullHistory = [...fullHistory, { id: Date.now(), action }];
+        setFullHistory(newFullHistory);
+        
+        if (showFullHistory) {
+            setHistory(newFullHistory);
+        } else {
+            setHistory(newFullHistory.slice(-12));
+        }
+    };
+    
+    const deleteHistoryAction = (id: number) => {
+        const newFullHistory = fullHistory.filter(item => item.id !== id);
+        setFullHistory(newFullHistory);
+
+        if (showFullHistory) {
+            setHistory(newFullHistory);
+        } else {
+            setHistory(newFullHistory.slice(-12));
+        }
+    };
+
+    const toggleShowFullHistory = () => {
+        const newShowFullHistory = !showFullHistory;
+        setShowFullHistory(newShowFullHistory);
+
+        if (newShowFullHistory) {
+            setHistory(fullHistory);
+        } else {
+            setHistory(fullHistory.slice(-12));
+        }
     };
 
     const handleUndo = () => {
@@ -102,6 +144,9 @@ export function EditorScreen({
         setCurrentEdits(initialEdit);
         setEditHistory([initialEdit]);
         setHistoryIndex(0);
+        setHistory([]);
+        setFullHistory([]);
+        setShowFullHistory(false);
     };
 
     const handleCropChange = (crop: {
@@ -112,6 +157,15 @@ export function EditorScreen({
     }) => {
         updateEdit('crop', crop);
     };
+    
+    const handleCropEnd = (crop: {
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+    }) => {
+        commitEdit('crop', crop);
+    }
 
     const handleRotationChange = (rotation: number) => {
         updateEdit('rotation', rotation);
@@ -245,7 +299,7 @@ export function EditorScreen({
             </header>
 
             {/* Main Content */}
-            <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+            <div className="flex-1 flex flex-col lg:flex-row overflow-hidden min-h-0">
                 {/* Canvas Area */}
                 <div className="flex-1 bg-slate-50 relative overflow-hidden">
                     <InteractiveImageCanvas
@@ -255,8 +309,17 @@ export function EditorScreen({
                         editMode={editMode}
                         onCropChange={handleCropChange}
                         onRotationChange={handleRotationChange}
+                        onEditEnd={() => handleCropEnd(currentEdits.crop)}
                     />
                 </div>
+
+                <HistoryPanel
+                    history={history}
+                    onDeleteHistory={deleteHistoryAction}
+                    toggleShowFullHistory={toggleShowFullHistory}
+                    showFullHistory={showFullHistory}
+                    fullHistoryCount={fullHistory.length}
+                />
 
                 {/* Controls Sidebar */}
                 <div className="w-full lg:w-96 bg-white border-t lg:border-t-0 lg:border-l border-slate-200 overflow-hidden flex flex-col">
@@ -286,6 +349,7 @@ export function EditorScreen({
                             <EditorControls
                                 edits={currentEdits}
                                 onEditChange={updateEdit}
+                                onEditCommit={commitEdit}
                                 editMode={editMode}
                                 onEditModeChange={setEditMode}
                             />

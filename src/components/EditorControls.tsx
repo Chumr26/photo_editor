@@ -11,11 +11,12 @@ import { useState } from 'react';
 interface EditorControlsProps {
   edits: EditValues;
   onEditChange: (key: keyof EditValues, value: any) => void;
+  onEditCommit: (key: keyof EditValues, value: any) => void;
   editMode: 'none' | 'crop' | 'rotate' | 'resize';
   onEditModeChange: (mode: 'none' | 'crop' | 'rotate' | 'resize') => void;
 }
 
-export function EditorControls({ edits, onEditChange, editMode, onEditModeChange }: EditorControlsProps) {
+export function EditorControls({ edits, onEditChange, onEditCommit, editMode, onEditModeChange }: EditorControlsProps) {
   const [rotationInput, setRotationInput] = useState(edits.rotation);
   const [resizeWidth, setResizeWidth] = useState(1000);
   const [resizeHeight, setResizeHeight] = useState(1000);
@@ -38,6 +39,7 @@ export function EditorControls({ edits, onEditChange, editMode, onEditModeChange
               <Slider
                 value={[edits.blur]}
                 onValueChange={([value]: number[]) => onEditChange('blur', value)}
+                onValueCommit={([value]: number[]) => onEditCommit('blur', value)}
                 min={0}
                 max={20}
                 step={1}
@@ -54,7 +56,7 @@ export function EditorControls({ edits, onEditChange, editMode, onEditModeChange
               <Switch
                 id="grayscale"
                 checked={edits.grayscale}
-                onCheckedChange={(checked: boolean) => onEditChange('grayscale', checked)}
+                onCheckedChange={(checked: boolean) => onEditCommit('grayscale', checked)}
               />
             </div>
 
@@ -72,6 +74,7 @@ export function EditorControls({ edits, onEditChange, editMode, onEditModeChange
               <Slider
                 value={[edits.brightness]}
                 onValueChange={([value]: number[]) => onEditChange('brightness', value)}
+                onValueCommit={([value]: number[]) => onEditCommit('brightness', value)}
                 min={0}
                 max={200}
                 step={1}
@@ -91,6 +94,7 @@ export function EditorControls({ edits, onEditChange, editMode, onEditModeChange
               <Slider
                 value={[edits.contrast]}
                 onValueChange={([value]: number[]) => onEditChange('contrast', value)}
+                onValueCommit={([value]: number[]) => onEditCommit('contrast', value)}
                 min={0}
                 max={200}
                 step={1}
@@ -106,7 +110,7 @@ export function EditorControls({ edits, onEditChange, editMode, onEditModeChange
               <div className="grid grid-cols-2 gap-2">
                 <Button
                   variant={edits.flipH ? 'default' : 'outline'}
-                  onClick={() => onEditChange('flipH', !edits.flipH)}
+                  onClick={() => onEditCommit('flipH', !edits.flipH)}
                   className="w-full"
                 >
                   <FlipHorizontal2 className="w-4 h-4 mr-2" />
@@ -114,7 +118,7 @@ export function EditorControls({ edits, onEditChange, editMode, onEditModeChange
                 </Button>
                 <Button
                   variant={edits.flipV ? 'default' : 'outline'}
-                  onClick={() => onEditChange('flipV', !edits.flipV)}
+                  onClick={() => onEditCommit('flipV', !edits.flipV)}
                   className="w-full"
                 >
                   <FlipVertical2 className="w-4 h-4 mr-2" />
@@ -177,7 +181,7 @@ export function EditorControls({ edits, onEditChange, editMode, onEditModeChange
             <Button
               variant="outline"
               onClick={() => {
-                onEditChange('crop', null);
+                onEditCommit('crop', null);
                 onEditModeChange('none');
               }}
               className="flex-1"
@@ -221,6 +225,7 @@ export function EditorControls({ edits, onEditChange, editMode, onEditModeChange
             <Slider
               value={[edits.rotation]}
               onValueChange={([value]: number[]) => onEditChange('rotation', value)}
+              onValueCommit={([value]: number[]) => onEditCommit('rotation', value)}
               min={0}
               max={360}
               step={1}
@@ -230,21 +235,21 @@ export function EditorControls({ edits, onEditChange, editMode, onEditModeChange
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => onEditChange('rotation', (edits.rotation - 90 + 360) % 360)}
+                onClick={() => onEditCommit('rotation', (edits.rotation - 90 + 360) % 360)}
               >
                 -90°
               </Button>
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => onEditChange('rotation', (edits.rotation + 90) % 360)}
+                onClick={() => onEditCommit('rotation', (edits.rotation + 90) % 360)}
               >
                 +90°
               </Button>
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => onEditChange('rotation', 0)}
+                onClick={() => onEditCommit('rotation', 0)}
               >
                 Đặt lại
               </Button>
@@ -304,7 +309,7 @@ export function EditorControls({ edits, onEditChange, editMode, onEditModeChange
             <Button
               variant="outline"
               onClick={() => {
-                onEditChange('resize', null);
+                onEditCommit('resize', null);
                 onEditModeChange('none');
               }}
               className="flex-1"
@@ -314,7 +319,7 @@ export function EditorControls({ edits, onEditChange, editMode, onEditModeChange
             </Button>
             <Button
               onClick={() => {
-                onEditChange('resize', { width: resizeWidth, height: resizeHeight });
+                onEditCommit('resize', { width: resizeWidth, height: resizeHeight });
                 onEditModeChange('none');
               }}
               className="flex-1"
