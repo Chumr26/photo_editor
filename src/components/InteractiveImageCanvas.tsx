@@ -23,6 +23,20 @@ export function InteractiveImageCanvas({
   const imgRef = useRef<HTMLImageElement | null>(null);
   const [isImageLoaded, setIsImageLoaded] = useState(false);
   
+  // Image transformation state (for free move and resize in preview mode)
+  const [imageTransform, setImageTransform] = useState({
+    x: 0, // X position in canvas (percentage)
+    y: 0, // Y position in canvas (percentage)
+    scale: 1, // Scale factor
+  });
+  const [isTransforming, setIsTransforming] = useState(false);
+  const [transformType, setTransformType] = useState<'move' | 'tl' | 'tr' | 'bl' | 'br' | null>(null);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const dragStartRef = useRef({ x: 0, y: 0 });
+  const transformTypeRef = useRef<'move' | 'tl' | 'tr' | 'bl' | 'br' | null>(null);
+  const initialScaleRef = useRef(1);
+  const initialTransformRef = useRef({ x: 0, y: 0, scale: 1 });
+  
   // Crop state
   const [cropArea, setCropArea] = useState({
     x: 10,
@@ -82,6 +96,26 @@ export function InteractiveImageCanvas({
     }
   }, [cropArea, editMode, isImageLoaded, onCropChange]);
 
+  // Resize canvas to fill parent
+  useEffect(() => {
+    const resizeCanvas = () => {
+      const canvas = canvasRef.current;
+      const container = containerRef.current;
+      if (!canvas || !container) return;
+
+      // Make canvas fill the container
+      canvas.width = container.clientWidth;
+      canvas.height = container.clientHeight;
+      
+      // Redraw after resize
+      drawCanvas();
+    };
+
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+    return () => window.removeEventListener('resize', resizeCanvas);
+  }, []);
+
   const drawCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     const container = containerRef.current;
@@ -90,6 +124,12 @@ export function InteractiveImageCanvas({
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+
+    // Ensure canvas fills parent
+    if (canvas.width !== container.clientWidth || canvas.height !== container.clientHeight) {
+      canvas.width = container.clientWidth;
+      canvas.height = container.clientHeight;
+    }
 
     // Determine source dimensions
     let sourceX = 0;
@@ -113,45 +153,37 @@ export function InteractiveImageCanvas({
       outputHeight = edits.resize.height;
     }
 
-    // Calculate canvas dimensions
-    let canvasWidth, canvasHeight;
+    // Calculate base display size (fit to canvas)
+    const aspectRatio = outputWidth / outputHeight;
+    let baseWidth = canvas.width * 0.8; // Leave some margin
+    let baseHeight = canvas.height * 0.8;
     
-    if (edits.frame) {
-      canvasWidth = edits.frame.width;
-      canvasHeight = edits.frame.height;
+    if (baseWidth / baseHeight > aspectRatio) {
+      baseWidth = baseHeight * aspectRatio;
     } else {
-      canvasWidth = outputWidth;
-      canvasHeight = outputHeight;
+      baseHeight = baseWidth / aspectRatio;
     }
-
-    // Calculate display size
-    const maxWidth = container.clientWidth - 40;
-    const maxHeight = container.clientHeight - 40;
-    
-    let displayWidth = canvasWidth;
-    let displayHeight = canvasHeight;
-
-    if (displayWidth > maxWidth || displayHeight > maxHeight) {
-      const ratio = Math.min(maxWidth / displayWidth, maxHeight / displayHeight);
-      displayWidth *= ratio;
-      displayHeight *= ratio;
-    }
-
-    canvas.width = displayWidth;
-    canvas.height = displayHeight;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Fill background if frame is set
-    if (edits.frame) {
-      ctx.fillStyle = edits.frame.backgroundColor;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-    }
+    // Draw background
+    ctx.fillStyle = edits.frame?.backgroundColor || '#f8f9fa';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    const scale = displayWidth / canvasWidth;
+    // Calculate final dimensions with user transform
+    const finalWidth = baseWidth * imageTransform.scale;
+    const finalHeight = baseHeight * imageTransform.scale;
+    
+    // Calculate position (center + offset)
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    const imgX = centerX + (imageTransform.x * canvas.width / 100) - finalWidth / 2;
+    const imgY = centerY + (imageTransform.y * canvas.height / 100) - finalHeight / 2;
 
     ctx.save();
-    ctx.translate(canvas.width / 2, canvas.height / 2);
+    
+    // Apply transformations at image center
+    ctx.translate(imgX + finalWidth / 2, imgY + finalHeight / 2);
     
     if (edits.rotation) {
       ctx.rotate((edits.rotation * Math.PI) / 180);
@@ -161,30 +193,16 @@ export function InteractiveImageCanvas({
     const scaleY = edits.flipV ? -1 : 1;
     ctx.scale(scaleX, scaleY);
 
-    let drawWidth, drawHeight;
-    
-    if (edits.frame) {
-      const imgScale = Math.min(
-        (canvasWidth * scale) / outputWidth,
-        (canvasHeight * scale) / outputHeight
-      );
-      drawWidth = outputWidth * imgScale;
-      drawHeight = outputHeight * imgScale;
-    } else {
-      drawWidth = outputWidth * scale;
-      drawHeight = outputHeight * scale;
-    }
-
     ctx.drawImage(
       img,
       sourceX,
       sourceY,
       sourceWidth,
       sourceHeight,
-      -drawWidth / 2,
-      -drawHeight / 2,
-      drawWidth,
-      drawHeight
+      -finalWidth / 2,
+      -finalHeight / 2,
+      finalWidth,
+      finalHeight
     );
 
     ctx.restore();
@@ -256,7 +274,7 @@ export function InteractiveImageCanvas({
 
     // Export processed image
     onProcessed(canvas.toDataURL('image/png'));
-  }, [imageUrl, edits, onProcessed, isImageLoaded, editMode, cropArea]);
+  }, [imageUrl, edits, onProcessed, isImageLoaded, editMode, cropArea, imageTransform, isTransforming]);
 
   useEffect(() => {
     drawCanvas();
@@ -320,133 +338,292 @@ export function InteractiveImageCanvas({
     return null;
   };
 
-  const handleCanvasMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (editMode !== 'crop' || isDragging) return;
+  // Free transform handlers (for preview mode)
+  const getTransformHandleAt = (canvas: HTMLCanvasElement, mouseX: number, mouseY: number): 'tl' | 'tr' | 'bl' | 'br' | 'move' | null => {
+    const img = imgRef.current;
+    if (!img) return null;
+
+    // Calculate image bounds
+    const aspectRatio = img.width / img.height;
+    let baseWidth = canvas.width * 0.8;
+    let baseHeight = canvas.height * 0.8;
     
+    if (baseWidth / baseHeight > aspectRatio) {
+      baseWidth = baseHeight * aspectRatio;
+    } else {
+      baseHeight = baseWidth / aspectRatio;
+    }
+
+    const finalWidth = baseWidth * imageTransform.scale;
+    const finalHeight = baseHeight * imageTransform.scale;
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    const imgX = centerX + (imageTransform.x * canvas.width / 100) - finalWidth / 2;
+    const imgY = centerY + (imageTransform.y * canvas.height / 100) - finalHeight / 2;
+
+    const handleSize = 12;
+    const handleMargin = 10;
+
+    // Check corner handles for resize with specific corners
+    const corners = [
+      { x: imgX, y: imgY, type: 'tl' as const },
+      { x: imgX + finalWidth, y: imgY, type: 'tr' as const },
+      { x: imgX, y: imgY + finalHeight, type: 'bl' as const },
+      { x: imgX + finalWidth, y: imgY + finalHeight, type: 'br' as const },
+    ];
+
+    for (const corner of corners) {
+      const dist = Math.sqrt(Math.pow(mouseX - corner.x, 2) + Math.pow(mouseY - corner.y, 2));
+      if (dist <= handleSize + handleMargin) {
+        return corner.type;
+      }
+    }
+
+    // Check if inside image for move
+    if (mouseX >= imgX && mouseX <= imgX + finalWidth && 
+        mouseY >= imgY && mouseY <= imgY + finalHeight) {
+      return 'move';
+    }
+
+    return null;
+  };
+
+  const handleCanvasMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const rect = canvas.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 100;
-    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
 
-    const handle = getHandleAt(canvas, x, y);
-    if (handle === 'tl' || handle === 'br') {
-      canvas.style.cursor = 'nwse-resize';
-    } else if (handle === 'tr' || handle === 'bl') {
-      canvas.style.cursor = 'nesw-resize';
-    } else if (handle === 't' || handle === 'b') {
-      canvas.style.cursor = 'ns-resize';
-    } else if (handle === 'l' || handle === 'r') {
-      canvas.style.cursor = 'ew-resize';
-    } else if (handle === 'box') {
-      canvas.style.cursor = 'move';
-    } else {
-      canvas.style.cursor = 'crosshair';
+    if (editMode === 'crop') {
+      if (isDragging) return;
+      const x = ((e.clientX - rect.left) / rect.width) * 100;
+      const y = ((e.clientY - rect.top) / rect.height) * 100;
+
+      const handle = getHandleAt(canvas, x, y);
+      if (handle === 'tl' || handle === 'br') {
+        canvas.style.cursor = 'nwse-resize';
+      } else if (handle === 'tr' || handle === 'bl') {
+        canvas.style.cursor = 'nesw-resize';
+      } else if (handle === 't' || handle === 'b') {
+        canvas.style.cursor = 'ns-resize';
+      } else if (handle === 'l' || handle === 'r') {
+        canvas.style.cursor = 'ew-resize';
+      } else if (handle === 'box') {
+        canvas.style.cursor = 'move';
+      } else {
+        canvas.style.cursor = 'crosshair';
+      }
+    } else if (editMode === 'none' && !isTransforming) {
+      // Free transform mode
+      const handle = getTransformHandleAt(canvas, mouseX, mouseY);
+      if (handle === 'tl' || handle === 'br') {
+        canvas.style.cursor = 'nwse-resize'; // Top-left or bottom-right
+      } else if (handle === 'tr' || handle === 'bl') {
+        canvas.style.cursor = 'nesw-resize'; // Top-right or bottom-left
+      } else if (handle === 'move') {
+        canvas.style.cursor = 'move';
+      } else {
+        canvas.style.cursor = 'default';
+      }
     }
   };
 
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (editMode !== 'crop') return;
-    
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const rect = canvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
     const x = ((e.clientX - rect.left) / rect.width) * 100;
     const y = ((e.clientY - rect.top) / rect.height) * 100;
 
-    const handle = getHandleAt(canvas, x, y);
-    setDraggedPart(handle);
-    setIsDragging(true);
-    
-    // Store in ref for immediate access
-    draggedPartRef.current = handle;
+    if (editMode === 'crop') {
+      const handle = getHandleAt(canvas, x, y);
+      setDraggedPart(handle);
+      setIsDragging(true);
+      
+      // Store in ref for immediate access
+      draggedPartRef.current = handle;
 
-    if (handle === 'box') {
-      const offset = { x: x - cropArea.x, y: y - cropArea.y };
-      setDragStartOffset(offset);
-      dragStartOffsetRef.current = offset;
-    } else if (!handle) {
-      setCropArea({ x, y, width: 0, height: 0 });
+      if (handle === 'box') {
+        const offset = { x: x - cropArea.x, y: y - cropArea.y };
+        setDragStartOffset(offset);
+        dragStartOffsetRef.current = offset;
+      } else if (!handle) {
+        setCropArea({ x, y, width: 0, height: 0 });
+      }
+    } else if (editMode === 'none') {
+      // Free transform mode
+      const handle = getTransformHandleAt(canvas, mouseX, mouseY);
+      if (!handle) return;
+
+      setIsTransforming(true);
+      setTransformType(handle);
+      transformTypeRef.current = handle;
+      setDragStart({ x: mouseX, y: mouseY });
+      dragStartRef.current = { x: mouseX, y: mouseY };
+      initialScaleRef.current = imageTransform.scale;
+      initialTransformRef.current = { ...imageTransform };
     }
 
+    if (editMode !== 'crop' && editMode !== 'none') return;
+
     const handleWindowMouseMove = (event: MouseEvent) => {
-      const newX = Math.max(0, Math.min(100, ((event.clientX - rect.left) / rect.width) * 100));
-      const newY = Math.max(0, Math.min(100, ((event.clientY - rect.top) / rect.height) * 100));
+      const mouseX = event.clientX - rect.left;
+      const mouseY = event.clientY - rect.top;
 
-      setCropArea((prev) => {
-        let { x: prevX, y: prevY, width: prevW, height: prevH } = prev;
-        const currentDraggedPart = draggedPartRef.current;
+      if (editMode === 'crop') {
+        const newX = Math.max(0, Math.min(100, ((event.clientX - rect.left) / rect.width) * 100));
+        const newY = Math.max(0, Math.min(100, ((event.clientY - rect.top) / rect.height) * 100));
 
-        switch (currentDraggedPart) {
-          case 'tl':
-            prevW += prevX - newX;
-            prevH += prevY - newY;
-            prevX = newX;
-            prevY = newY;
-            break;
-          case 'tr':
-            prevW = newX - prevX;
-            prevH += prevY - newY;
-            prevY = newY;
-            break;
-          case 'bl':
-            prevW += prevX - newX;
-            prevH = newY - prevY;
-            prevX = newX;
-            break;
-          case 'br':
-            prevW = newX - prevX;
-            prevH = newY - prevY;
-            break;
-          case 't':
-            prevH += prevY - newY;
-            prevY = newY;
-            break;
-          case 'r':
-            prevW = newX - prevX;
-            break;
-          case 'b':
-            prevH = newY - prevY;
-            break;
-          case 'l':
-            prevW += prevX - newX;
-            prevX = newX;
-            break;
-          case 'box':
-            prevX = newX - dragStartOffsetRef.current.x;
-            prevY = newY - dragStartOffsetRef.current.y;
-            break;
-          default:
-            return {
-              x: Math.min(x, newX),
-              y: Math.min(y, newY),
-              width: Math.abs(newX - x),
-              height: Math.abs(newY - y),
-            };
+        setCropArea((prev) => {
+          let { x: prevX, y: prevY, width: prevW, height: prevH } = prev;
+          const currentDraggedPart = draggedPartRef.current;
+
+          switch (currentDraggedPart) {
+            case 'tl':
+              prevW += prevX - newX;
+              prevH += prevY - newY;
+              prevX = newX;
+              prevY = newY;
+              break;
+            case 'tr':
+              prevW = newX - prevX;
+              prevH += prevY - newY;
+              prevY = newY;
+              break;
+            case 'bl':
+              prevW += prevX - newX;
+              prevH = newY - prevY;
+              prevX = newX;
+              break;
+            case 'br':
+              prevW = newX - prevX;
+              prevH = newY - prevY;
+              break;
+            case 't':
+              prevH += prevY - newY;
+              prevY = newY;
+              break;
+            case 'r':
+              prevW = newX - prevX;
+              break;
+            case 'b':
+              prevH = newY - prevY;
+              break;
+            case 'l':
+              prevW += prevX - newX;
+              prevX = newX;
+              break;
+            case 'box':
+              prevX = newX - dragStartOffsetRef.current.x;
+              prevY = newY - dragStartOffsetRef.current.y;
+              break;
+            default:
+              return {
+                x: Math.min(x, newX),
+                y: Math.min(y, newY),
+                width: Math.abs(newX - x),
+                height: Math.abs(newY - y),
+              };
+          }
+
+          if (prevW < 0) {
+            prevX += prevW;
+            prevW = Math.abs(prevW);
+          }
+          if (prevH < 0) {
+            prevY += prevH;
+            prevH = Math.abs(prevH);
+          }
+
+          prevX = Math.max(0, Math.min(100 - prevW, prevX));
+          prevY = Math.max(0, Math.min(100 - prevH, prevY));
+
+          return { x: prevX, y: prevY, width: prevW, height: prevH };
+        });
+      } else if (editMode === 'none' && transformTypeRef.current) {
+        // Free transform
+        const deltaX = mouseX - dragStartRef.current.x;
+        const deltaY = mouseY - dragStartRef.current.y;
+
+        if (transformTypeRef.current === 'move') {
+          setImageTransform((prev) => ({
+            ...prev,
+            x: prev.x + (deltaX / canvas.width) * 100,
+            y: prev.y + (deltaY / canvas.height) * 100,
+          }));
+          dragStartRef.current = { x: mouseX, y: mouseY };
+        } else if (transformTypeRef.current === 'tl' || transformTypeRef.current === 'tr' || 
+                   transformTypeRef.current === 'bl' || transformTypeRef.current === 'br') {
+          // Calculate distance from opposite corner for scaling
+          const img = imgRef.current;
+          if (!img) return;
+
+          const aspectRatio = img.width / img.height;
+          let baseWidth = canvas.width * 0.8;
+          let baseHeight = canvas.height * 0.8;
+          
+          if (baseWidth / baseHeight > aspectRatio) {
+            baseWidth = baseHeight * aspectRatio;
+          } else {
+            baseHeight = baseWidth / aspectRatio;
+          }
+
+          const initialWidth = baseWidth * initialScaleRef.current;
+          const initialHeight = baseHeight * initialScaleRef.current;
+          const centerX = canvas.width / 2;
+          const centerY = canvas.height / 2;
+          const imgX = centerX + (initialTransformRef.current.x * canvas.width / 100) - initialWidth / 2;
+          const imgY = centerY + (initialTransformRef.current.y * canvas.height / 100) - initialHeight / 2;
+
+          // Get opposite corner based on which corner is being dragged
+          let oppX = 0, oppY = 0;
+          if (transformTypeRef.current === 'tl') {
+            oppX = imgX + initialWidth;
+            oppY = imgY + initialHeight;
+          } else if (transformTypeRef.current === 'tr') {
+            oppX = imgX;
+            oppY = imgY + initialHeight;
+          } else if (transformTypeRef.current === 'bl') {
+            oppX = imgX + initialWidth;
+            oppY = imgY;
+          } else if (transformTypeRef.current === 'br') {
+            oppX = imgX;
+            oppY = imgY;
+          }
+
+          // Calculate distance from opposite corner
+          const initialDist = Math.sqrt(
+            Math.pow(dragStartRef.current.x - oppX, 2) + 
+            Math.pow(dragStartRef.current.y - oppY, 2)
+          );
+          const currentDist = Math.sqrt(
+            Math.pow(mouseX - oppX, 2) + 
+            Math.pow(mouseY - oppY, 2)
+          );
+          
+          const scaleFactor = currentDist / initialDist;
+          const newScale = Math.max(0.1, Math.min(5, initialScaleRef.current * scaleFactor));
+          
+          setImageTransform((prev) => ({
+            ...prev,
+            scale: newScale,
+          }));
         }
-
-        if (prevW < 0) {
-          prevX += prevW;
-          prevW = Math.abs(prevW);
-        }
-        if (prevH < 0) {
-          prevY += prevH;
-          prevH = Math.abs(prevH);
-        }
-
-        prevX = Math.max(0, Math.min(100 - prevW, prevX));
-        prevY = Math.max(0, Math.min(100 - prevH, prevY));
-
-        return { x: prevX, y: prevY, width: prevW, height: prevH };
-      });
+      }
     };
 
     const handleWindowMouseUp = () => {
       setIsDragging(false);
+      setIsTransforming(false);
       setDraggedPart(null);
+      setTransformType(null);
       draggedPartRef.current = null;
+      transformTypeRef.current = null;
       window.removeEventListener('mousemove', handleWindowMouseMove);
       window.removeEventListener('mouseup', handleWindowMouseUp);
     };
@@ -455,13 +632,85 @@ export function InteractiveImageCanvas({
     window.addEventListener('mouseup', handleWindowMouseUp);
   };
 
+  // Reset transform when switching modes
+  useEffect(() => {
+    if (editMode !== 'none') {
+      setImageTransform({ x: 0, y: 0, scale: 1 });
+    }
+  }, [editMode]);
+
+  // Handle keyboard zoom (Ctrl + +/-)
+  useEffect(() => {
+    if (editMode !== 'none') return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+
+      if (e.key === '=' || e.key === '+') {
+        e.preventDefault();
+        setImageTransform((prev) => ({
+          ...prev,
+          scale: Math.min(5, prev.scale * 1.1),
+        }));
+      } else if (e.key === '-' || e.key === '_') {
+        e.preventDefault();
+        setImageTransform((prev) => ({
+          ...prev,
+          scale: Math.max(0.1, prev.scale / 1.1),
+        }));
+      } else if (e.key === '0') {
+        e.preventDefault();
+        setImageTransform((prev) => ({
+          ...prev,
+          scale: 1,
+        }));
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [editMode]);
+
+  // Handle mouse wheel zoom with native event listener to properly prevent default
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || editMode !== 'none') return;
+
+    const handleWheelNative = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+      
+      const delta = e.deltaY > 0 ? 0.9 : 1.1;
+      setImageTransform((prev) => ({
+        ...prev,
+        scale: Math.max(0.1, Math.min(5, prev.scale * delta)),
+      }));
+    };
+
+    canvas.addEventListener('wheel', handleWheelNative, { passive: false });
+    return () => canvas.removeEventListener('wheel', handleWheelNative);
+  }, [editMode]);
+
+  // Handle mouse wheel zoom (React synthetic event as backup)
+  const handleWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
+    if (editMode !== 'none') return;
+    if (!e.ctrlKey && !e.metaKey) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
   return (
-    <div ref={containerRef} className="w-full h-full flex items-center justify-center">
+    <div ref={containerRef} className="w-full h-full relative overflow-hidden">
       <canvas
         ref={canvasRef}
-        className="max-w-full max-h-full rounded-lg shadow-2xl"
+        className="w-full h-full block"
         onMouseDown={handleMouseDown}
         onMouseMove={handleCanvasMouseMove}
+        onWheel={handleWheel}
+        style={{ touchAction: 'none' }}
       />
     </div>
   );

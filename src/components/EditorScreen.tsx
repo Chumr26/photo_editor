@@ -155,9 +155,9 @@ export function EditorScreen({
     };
 
     return (
-        <div className="min-h-screen flex flex-col">
+        <div className="h-screen flex flex-col overflow-hidden">
             {/* Header */}
-            <header className="bg-white border-b border-slate-200 px-4 py-3">
+            <header className="bg-white border-b border-slate-200 px-4 py-3 shrink-0">
                 <div className="max-w-7xl mx-auto flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 md:gap-3">
                         <Button
@@ -247,7 +247,7 @@ export function EditorScreen({
             {/* Main Content */}
             <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
                 {/* Canvas Area */}
-                <div className="flex-1 flex items-center justify-center p-4 bg-slate-50 overflow-auto">
+                <div className="flex-1 bg-slate-50 relative overflow-hidden">
                     <InteractiveImageCanvas
                         imageUrl={imageState.original}
                         edits={currentEdits}
