@@ -236,6 +236,175 @@ export function InteractiveImageCanvas({
       }
     }
 
+    // Draw overlays (shapes, image overlays, text overlays)
+    if (editMode !== 'crop') {
+      // Calculate the scale factor for overlays
+      const overlayScale = (finalWidth / outputWidth);
+
+      // Draw shapes
+      if (edits.shapes && edits.shapes.length > 0) {
+        edits.shapes.forEach((shape) => {
+          ctx.save();
+          ctx.globalAlpha = shape.opacity / 100;
+
+          const shapeX = imgX + (shape.x * overlayScale);
+          const shapeY = imgY + (shape.y * overlayScale);
+
+          if (shape.type === 'rectangle') {
+            const width = (shape.width || 100) * overlayScale;
+            const height = (shape.height || 100) * overlayScale;
+            
+            if (shape.fillColor && shape.fillColor !== 'transparent') {
+              ctx.fillStyle = shape.fillColor;
+              ctx.fillRect(shapeX, shapeY, width, height);
+            }
+            
+            ctx.strokeStyle = shape.strokeColor;
+            ctx.lineWidth = shape.strokeWidth;
+            ctx.strokeRect(shapeX, shapeY, width, height);
+          } else if (shape.type === 'circle') {
+            const radius = ((shape.width || 100) / 2) * overlayScale;
+            const centerX = shapeX + radius;
+            const centerY = shapeY + radius;
+            
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+            
+            if (shape.fillColor && shape.fillColor !== 'transparent') {
+              ctx.fillStyle = shape.fillColor;
+              ctx.fill();
+            }
+            
+            ctx.strokeStyle = shape.strokeColor;
+            ctx.lineWidth = shape.strokeWidth;
+            ctx.stroke();
+          } else if (shape.type === 'line') {
+            const x2 = imgX + ((shape.x2 || 0) * overlayScale);
+            const y2 = imgY + ((shape.y2 || 0) * overlayScale);
+            
+            ctx.strokeStyle = shape.strokeColor;
+            ctx.lineWidth = shape.strokeWidth;
+            ctx.beginPath();
+            ctx.moveTo(shapeX, shapeY);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+          } else if (shape.type === 'arrow') {
+            const x2 = imgX + ((shape.x2 || 0) * overlayScale);
+            const y2 = imgY + ((shape.y2 || 0) * overlayScale);
+            
+            ctx.strokeStyle = shape.strokeColor;
+            ctx.lineWidth = shape.strokeWidth;
+            ctx.fillStyle = shape.strokeColor;
+            
+            // Draw line
+            ctx.beginPath();
+            ctx.moveTo(shapeX, shapeY);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+            
+            // Draw arrowhead
+            const angle = Math.atan2(y2 - shapeY, x2 - shapeX);
+            const headLength = 15 * overlayScale;
+            
+            ctx.beginPath();
+            ctx.moveTo(x2, y2);
+            ctx.lineTo(
+              x2 - headLength * Math.cos(angle - Math.PI / 6),
+              y2 - headLength * Math.sin(angle - Math.PI / 6)
+            );
+            ctx.lineTo(
+              x2 - headLength * Math.cos(angle + Math.PI / 6),
+              y2 - headLength * Math.sin(angle + Math.PI / 6)
+            );
+            ctx.closePath();
+            ctx.fill();
+          }
+
+          ctx.restore();
+        });
+      }
+
+      // Draw image overlays
+      if (edits.imageOverlays && edits.imageOverlays.length > 0) {
+        edits.imageOverlays.forEach((overlay) => {
+          const overlayImg = new Image();
+          overlayImg.src = overlay.imageData;
+          
+          if (overlayImg.complete && overlayImg.naturalWidth > 0) {
+            ctx.save();
+            
+            // Set blend mode
+            ctx.globalCompositeOperation = overlay.blendMode as GlobalCompositeOperation;
+            
+            // Set opacity
+            ctx.globalAlpha = overlay.opacity / 100;
+            
+            // Calculate overlay position and size
+            const overlayX = imgX + (overlay.x * overlayScale);
+            const overlayY = imgY + (overlay.y * overlayScale);
+            const overlayWidth = overlay.width * overlayScale;
+            const overlayHeight = overlay.height * overlayScale;
+            
+            // Translate to overlay center for rotation
+            ctx.translate(overlayX + overlayWidth / 2, overlayY + overlayHeight / 2);
+            
+            // Apply rotation
+            if (overlay.rotation) {
+              ctx.rotate((overlay.rotation * Math.PI) / 180);
+            }
+            
+            // Apply flip
+            const flipScaleX = overlay.flipH ? -1 : 1;
+            const flipScaleY = overlay.flipV ? -1 : 1;
+            ctx.scale(flipScaleX, flipScaleY);
+            
+            // Draw overlay image
+            ctx.drawImage(
+              overlayImg,
+              -overlayWidth / 2,
+              -overlayHeight / 2,
+              overlayWidth,
+              overlayHeight
+            );
+            
+            ctx.restore();
+          }
+        });
+      }
+
+      // Draw text overlays
+      if (edits.textOverlays && edits.textOverlays.length > 0) {
+        edits.textOverlays.forEach((text) => {
+          ctx.save();
+          
+          ctx.globalAlpha = text.opacity / 100;
+          
+          // Calculate text position
+          const textX = imgX + (text.x * overlayScale);
+          const textY = imgY + (text.y * overlayScale);
+          
+          // Apply text transformations
+          ctx.translate(textX, textY);
+          
+          if (text.rotation) {
+            ctx.rotate((text.rotation * Math.PI) / 180);
+          }
+          
+          // Set font properties
+          const fontSize = text.fontSize * overlayScale;
+          ctx.font = `${text.fontStyle} ${text.fontWeight} ${fontSize}px ${text.fontFamily}`;
+          ctx.fillStyle = text.color;
+          ctx.textAlign = text.textAlign;
+          ctx.textBaseline = 'top';
+          
+          // Draw text
+          ctx.fillText(text.text, 0, 0);
+          
+          ctx.restore();
+        });
+      }
+    }
+
     // Draw crop overlay if in crop mode
     if (editMode === 'crop') {
       // Dark overlay

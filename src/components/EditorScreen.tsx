@@ -8,6 +8,10 @@ import { AISettingsModal, AISettings } from './AISettingsModal';
 import { EditHistoryTimeline } from './EditHistoryTimeline';
 import { AdvancedAdjustments } from './AdvancedAdjustments';
 import { PresetFilters } from './PresetFilters';
+import { TextOverlayTool } from './TextOverlayTool';
+import { ShapesTool } from './ShapesTool';
+import { ImageOverlayTool } from './ImageOverlayTool';
+import { BeforeAfterComparison } from './BeforeAfterComparison';
 import { useEditHistory } from '../hooks/useEditHistory';
 import { Button } from './ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
@@ -21,6 +25,7 @@ import {
     Sliders,
     History,
     Maximize,
+    SlidersHorizontal,
 } from 'lucide-react';
 
 interface EditorScreenProps {
@@ -58,6 +63,11 @@ export function EditorScreen({
         highlights: 0,
         vignette: 0,
         sharpen: 0,
+        
+        // Overlays
+        textOverlays: [],
+        shapes: [],
+        imageOverlays: [],
     };
 
     const {
@@ -66,6 +76,7 @@ export function EditorScreen({
         currentEdits,
         canUndo,
         canRedo,
+        addToHistory,
         updateCurrent,
         undo,
         redo,
@@ -78,6 +89,7 @@ export function EditorScreen({
     >('none');
     const [showExportModal, setShowExportModal] = useState(false);
     const [showHistoryTimeline, setShowHistoryTimeline] = useState(false);
+    const [showBeforeAfter, setShowBeforeAfter] = useState(false);
     const [processedImage, setProcessedImage] = useState<string>('');
     const [showAISettings, setShowAISettings] = useState(false);
     const [showAIPanel, setShowAIPanel] = useState(false);
@@ -122,6 +134,18 @@ export function EditorScreen({
 
     const handleResetEdits = () => {
         reset(initialEdits);
+        setTempEdits(null);
+    };
+
+    // Wrapper handlers for overlay tools that use Partial<EditValues>
+    const handleOverlayChange = (updates: Partial<EditValues>) => {
+        setTempEdits({ ...currentEdits, ...updates });
+    };
+
+    const handleOverlayCommit = (updates: Partial<EditValues>) => {
+        // Apply all updates to history
+        let updatedEdits = { ...currentEdits, ...updates };
+        addToHistory(updatedEdits);
         setTempEdits(null);
     };
 
@@ -380,6 +404,33 @@ export function EditorScreen({
                                 edits={displayEdits}
                                 onEditCommit={handleEditCommit}
                             />
+                            <TextOverlayTool
+                                edits={displayEdits}
+                                onEditChange={handleOverlayChange}
+                                onEditCommit={handleOverlayCommit}
+                            />
+                            <ShapesTool
+                                edits={displayEdits}
+                                onEditChange={handleOverlayChange}
+                                onEditCommit={handleOverlayCommit}
+                            />
+                            <ImageOverlayTool
+                                edits={displayEdits}
+                                onEditChange={handleOverlayChange}
+                                onEditCommit={handleOverlayCommit}
+                            />
+                            
+                            {/* Before/After Button */}
+                            <div className="p-6 border-t border-slate-200">
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setShowBeforeAfter(true)}
+                                    className="w-full"
+                                >
+                                    <SlidersHorizontal className="w-4 h-4 mr-2" />
+                                    So sánh trước/sau
+                                </Button>
+                            </div>
                         </TabsContent>
 
                         <TabsContent
@@ -418,6 +469,14 @@ export function EditorScreen({
                     currentIndex={currentIndex}
                     onJumpToIndex={jumpToIndex}
                     onClose={() => setShowHistoryTimeline(false)}
+                />
+            )}
+
+            {showBeforeAfter && (
+                <BeforeAfterComparison
+                    originalImage={imageState.original}
+                    processedImage={processedImage}
+                    onClose={() => setShowBeforeAfter(false)}
                 />
             )}
         </div>
