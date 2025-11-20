@@ -149,25 +149,22 @@ export function EditorScreen({
         setTempEdits(null);
     };
 
-    const handleCropChange = (crop: {
+    const handleCropConfirm = (crop: {
         x: number;
         y: number;
         width: number;
         height: number;
-    }) => {
-        // Temporary update during crop drag - don't add to history
-        setTempEdits({ ...currentEdits, crop });
-    };
-
-    const handleCropEnd = (crop: {
-        x: number;
-        y: number;
-        width: number;
-        height: number;
-    }) => {
-        // Commit to history when crop is finished
+    } | null) => {
+        // Commit crop to history when user clicks Done
         updateCurrent('crop', crop);
         setTempEdits(null);
+        setEditMode('none');
+    };
+
+    const handleCropCancel = () => {
+        // Cancel crop without saving
+        setTempEdits(null);
+        setEditMode('none');
     };
 
     const handleRotationChange = (rotation: number) => {
@@ -352,12 +349,9 @@ export function EditorScreen({
                         edits={displayEdits}
                         onProcessed={setProcessedImage}
                         editMode={editMode}
-                        onCropChange={handleCropChange}
                         onRotationChange={handleRotationChange}
-                        onEditEnd={() =>
-                            displayEdits.crop &&
-                            handleCropEnd(displayEdits.crop)
-                        }
+                        onCropConfirm={handleCropConfirm}
+                        onCropCancel={handleCropCancel}
                         onZoomChange={setCanvasZoom}
                         onResetView={() => {}}
                     />
@@ -394,6 +388,8 @@ export function EditorScreen({
                                 onEditCommit={handleEditCommit}
                                 editMode={editMode}
                                 onEditModeChange={setEditMode}
+                                onCropConfirm={handleCropConfirm}
+                                onCropCancel={handleCropCancel}
                             />
                             {editMode === 'none' && (
                                 <>

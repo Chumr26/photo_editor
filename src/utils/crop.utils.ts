@@ -3,9 +3,122 @@
  * 
  * Helper functions for crop area calculations, handle detection,
  * and crop overlay rendering.
+ * 
+ * COORDINATE SYSTEMS:
+ * - Canvas Pixel: Actual pixel position on the HTML canvas element (0 to canvas.width/height)
+ * - Canvas Percentage: Percentage position on canvas (0-100%)
+ * - Image Pixel: Actual pixel position in the source image (0 to image.width/height)
+ * - Display Bounds: The actual bounds where the image is displayed on canvas (accounting for scaling and centering)
  */
 
 import { CropArea, DragHandle } from '../types/editor.types';
+
+/**
+ * Calculate the display bounds of an image on canvas
+ * Returns the actual pixel bounds where the image is drawn on the canvas
+ */
+export function calculateImageDisplayBounds(
+  canvas: HTMLCanvasElement,
+  imageWidth: number,
+  imageHeight: number,
+  imageTransform?: { x: number; y: number; scale: number }
+): { x: number; y: number; width: number; height: number } {
+  const transform = imageTransform || { x: 0, y: 0, scale: 1 };
+  
+  // Calculate base display size (fit to canvas with margin)
+  const aspectRatio = imageWidth / imageHeight;
+  let baseWidth = canvas.width * 0.8;
+  let baseHeight = canvas.height * 0.8;
+  
+  if (baseWidth / baseHeight > aspectRatio) {
+    baseWidth = baseHeight * aspectRatio;
+  } else {
+    baseHeight = baseWidth / aspectRatio;
+  }
+
+  // Apply user scale
+  const finalWidth = baseWidth * transform.scale;
+  const finalHeight = baseHeight * transform.scale;
+  
+  // Calculate position (center + offset)
+  const centerX = canvas.width / 2;
+  const centerY = canvas.height / 2;
+  const x = centerX + (transform.x * canvas.width / 100) - finalWidth / 2;
+  const y = centerY + (transform.y * canvas.height / 100) - finalHeight / 2;
+
+  return { x, y, width: finalWidth, height: finalHeight };
+}
+
+/**
+ * Convert crop area from canvas percentage to image pixel coordinates
+ */
+export function cropPercentToImagePixels(
+  cropPercent: CropArea,
+  canvas: HTMLCanvasElement,
+  imageWidth: number,
+  imageHeight: number,
+  imageTransform?: { x: number; y: number; scale: number }
+): { x: number; y: number; width: number; height: number } {
+  const displayBounds = calculateImageDisplayBounds(canvas, imageWidth, imageHeight, imageTransform);
+  
+  // Convert canvas percentage to canvas pixels
+  const cropCanvasX = (cropPercent.x / 100) * canvas.width;
+  const cropCanvasY = (cropPercent.y / 100) * canvas.height;
+  const cropCanvasW = (cropPercent.width / 100) * canvas.width;
+  const cropCanvasH = (cropPercent.height / 100) * canvas.height;
+  
+  // Convert canvas pixels to image pixels
+  // Calculate relative position within the displayed image
+  const relativeX = cropCanvasX - displayBounds.x;
+  const relativeY = cropCanvasY - displayBounds.y;
+  
+  // Scale to original image dimensions
+  const scaleX = imageWidth / displayBounds.width;
+  const scaleY = imageHeight / displayBounds.height;
+  
+  const imageX = Math.max(0, Math.round(relativeX * scaleX));
+  const imageY = Math.max(0, Math.round(relativeY * scaleY));
+  const imageW = Math.min(imageWidth - imageX, Math.round(cropCanvasW * scaleX));
+  const imageH = Math.min(imageHeight - imageY, Math.round(cropCanvasH * scaleY));
+  
+  return {
+    x: imageX,
+    y: imageY,
+    width: imageW,
+    height: imageH
+  };
+}
+
+/**
+ * Convert crop area from image pixel coordinates to canvas percentage
+ */
+export function cropImagePixelsToPercent(
+  cropPixels: { x: number; y: number; width: number; height: number },
+  canvas: HTMLCanvasElement,
+  imageWidth: number,
+  imageHeight: number,
+  imageTransform?: { x: number; y: number; scale: number }
+): CropArea {
+  const displayBounds = calculateImageDisplayBounds(canvas, imageWidth, imageHeight, imageTransform);
+  
+  // Calculate scale from image to display
+  const scaleX = displayBounds.width / imageWidth;
+  const scaleY = displayBounds.height / imageHeight;
+  
+  // Convert image pixels to canvas pixels
+  const canvasX = displayBounds.x + (cropPixels.x * scaleX);
+  const canvasY = displayBounds.y + (cropPixels.y * scaleY);
+  const canvasW = cropPixels.width * scaleX;
+  const canvasH = cropPixels.height * scaleY;
+  
+  // Convert canvas pixels to percentage
+  return {
+    x: (canvasX / canvas.width) * 100,
+    y: (canvasY / canvas.height) * 100,
+    width: (canvasW / canvas.width) * 100,
+    height: (canvasH / canvas.height) * 100
+  };
+}
 
 /**
  * Detect which handle the mouse is over

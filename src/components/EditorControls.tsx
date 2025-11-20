@@ -14,9 +14,11 @@ interface EditorControlsProps {
   onEditCommit: (key: keyof EditValues, value: any) => void;
   editMode: 'none' | 'crop' | 'rotate' | 'resize';
   onEditModeChange: (mode: 'none' | 'crop' | 'rotate' | 'resize') => void;
+  onCropConfirm?: (crop: { x: number; y: number; width: number; height: number } | null) => void;
+  onCropCancel?: () => void;
 }
 
-export function EditorControls({ edits, onEditChange, onEditCommit, editMode, onEditModeChange }: EditorControlsProps) {
+export function EditorControls({ edits, onEditChange, onEditCommit, editMode, onEditModeChange, onCropConfirm, onCropCancel }: EditorControlsProps) {
   const [rotationInput, setRotationInput] = useState(edits.rotation);
   const [resizeWidth, setResizeWidth] = useState(1000);
   const [resizeHeight, setResizeHeight] = useState(1000);
@@ -181,8 +183,13 @@ export function EditorControls({ edits, onEditChange, onEditCommit, editMode, on
             <Button
               variant="outline"
               onClick={() => {
-                onEditCommit('crop', null);
-                onEditModeChange('none');
+                if (onCropCancel) {
+                  onCropCancel();
+                } else if ((window as any).__cancelCrop) {
+                  (window as any).__cancelCrop();
+                } else {
+                  onEditModeChange('none');
+                }
               }}
               className="flex-1"
             >
@@ -190,7 +197,15 @@ export function EditorControls({ edits, onEditChange, onEditCommit, editMode, on
               Hủy
             </Button>
             <Button
-              onClick={() => onEditModeChange('none')}
+              onClick={() => {
+                if ((window as any).__confirmCrop) {
+                  (window as any).__confirmCrop();
+                } else if (onCropConfirm) {
+                  onCropConfirm(edits.crop);
+                } else {
+                  onEditModeChange('none');
+                }
+              }}
               className="flex-1"
             >
               <Check className="w-4 h-4 mr-2" />

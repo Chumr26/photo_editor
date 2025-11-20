@@ -1,14 +1,31 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { EditValues } from '../App';
+import { cropPercentToImagePixels, cropImagePixelsToPercent } from '../utils/crop.utils';
+
+/**
+ * InteractiveImageCanvas - Main canvas component for image editing
+ * 
+ * CROP FUNCTIONALITY:
+ * 1. When entering crop mode, existing crop (if any) is converted from image pixels to canvas percentage
+ * 2. During crop drag, cropArea state (canvas percentage) is updated locally - NO history updates
+ * 3. When user clicks "Xong" (Done), cropArea is converted to image pixels and passed to onCropConfirm
+ * 4. Parent (EditorScreen) adds the crop to edit history - ONE entry per crop operation
+ * 5. When not in crop mode, edits.crop (image pixels) is applied during rendering
+ * 
+ * COORDINATE SYSTEMS:
+ * - cropArea: Canvas percentage (0-100%) - used for overlay drawing during crop mode
+ * - edits.crop: Image pixel coordinates - used for actual cropping in final render
+ * - Conversion handled by crop.utils.ts functions
+ */
 
 interface InteractiveImageCanvasProps {
   imageUrl: string;
   edits: EditValues;
   onProcessed: (dataUrl: string) => void;
   editMode: 'none' | 'crop' | 'rotate' | 'resize';
-  onCropChange?: (crop: { x: number; y: number; width: number; height: number }) => void;
+  onCropConfirm?: (crop: { x: number; y: number; width: number; height: number } | null) => void;
+  onCropCancel?: () => void;
   onRotationChange?: (rotation: number) => void;
-  onEditEnd?: (action: string) => void;
   onZoomChange?: (zoom: number) => void;
   onResetView?: () => void;
 }
@@ -18,9 +35,9 @@ export function InteractiveImageCanvas({
   edits,
   onProcessed,
   editMode,
-  onCropChange,
+  onCropConfirm,
+  onCropCancel,
   onRotationChange,
-  onEditEnd,
   onZoomChange,
   onResetView,
 }: InteractiveImageCanvasProps) {
@@ -66,16 +83,6 @@ export function InteractiveImageCanvas({
     img.onload = () => {
       imgRef.current = img;
       setIsImageLoaded(true);
-
-      // Initialize crop area from existing crop or default
-      if (edits.crop) {
-        setCropArea({
-          x: (edits.crop.x / img.width) * 100,
-          y: (edits.crop.y / img.height) * 100,
-          width: (edits.crop.width / img.width) * 100,
-          height: (edits.crop.height / img.height) * 100,
-        });
-      }
     };
 
     img.onerror = () => {
@@ -85,22 +92,33 @@ export function InteractiveImageCanvas({
     img.src = imageUrl;
   }, [imageUrl]);
 
-  // Update crop when crop area changes
+  // Initialize crop area when entering crop mode
   useEffect(() => {
-    if (editMode === 'crop' && isImageLoaded && imgRef.current && onCropChange) {
+    if (editMode === 'crop' && isImageLoaded && canvasRef.current && imgRef.current) {
+      const canvas = canvasRef.current;
       const img = imgRef.current;
-      const actualCrop = {
-        x: Math.round((cropArea.x / 100) * img.width),
-        y: Math.round((cropArea.y / 100) * img.height),
-        width: Math.round((cropArea.width / 100) * img.width),
-        height: Math.round((cropArea.height / 100) * img.height),
-      };
       
-      if (actualCrop.width > 10 && actualCrop.height > 10) {
-        onCropChange(actualCrop);
+      if (edits.crop) {
+        // Convert existing crop from image pixels to canvas percentage
+        const cropPercent = cropImagePixelsToPercent(
+          edits.crop,
+          canvas,
+          img.width,
+          img.height,
+          imageTransform
+        );
+        setCropArea(cropPercent);
+      } else {
+        // Default crop area (80% of canvas, centered)
+        setCropArea({
+          x: 10,
+          y: 10,
+          width: 80,
+          height: 80,
+        });
       }
     }
-  }, [cropArea, editMode, isImageLoaded, onCropChange]);
+  }, [editMode, isImageLoaded, edits.crop, imageTransform]);
 
   // Resize canvas to fill parent
   useEffect(() => {
@@ -138,11 +156,13 @@ export function InteractiveImageCanvas({
     }
 
     // Determine source dimensions
+    // NOTE: edits.crop contains image pixel coordinates (not percentage)
     let sourceX = 0;
     let sourceY = 0;
     let sourceWidth = img.width;
     let sourceHeight = img.height;
 
+    // Apply crop if exists and not currently in crop mode (show final result)
     if (edits.crop && editMode !== 'crop') {
       sourceX = edits.crop.x;
       sourceY = edits.crop.y;
@@ -406,12 +426,13 @@ export function InteractiveImageCanvas({
     }
 
     // Draw crop overlay if in crop mode
+    // NOTE: cropArea is in canvas percentage (0-100%), converted to pixels here for drawing
     if (editMode === 'crop') {
       // Dark overlay
       ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Calculate crop rectangle position
+      // Calculate crop rectangle position (convert percentage to pixels)
       const cropX = (cropArea.x / 100) * canvas.width;
       const cropY = (cropArea.y / 100) * canvas.height;
       const cropW = (cropArea.width / 100) * canvas.width;
@@ -801,9 +822,6 @@ export function InteractiveImageCanvas({
       transformTypeRef.current = null;
       window.removeEventListener('mousemove', handleWindowMouseMove);
       window.removeEventListener('mouseup', handleWindowMouseUp);
-      if (onEditEnd) {
-        onEditEnd('Crop');
-      }
     };
 
     window.addEventListener('mousemove', handleWindowMouseMove);
@@ -894,6 +912,44 @@ export function InteractiveImageCanvas({
       onResetView();
     }
   }, [onResetView]);
+
+  // Get current crop in image pixel coordinates
+  const getCurrentCrop = useCallback(() => {
+    const canvas = canvasRef.current;
+    const img = imgRef.current;
+    if (!canvas || !img || editMode !== 'crop') return null;
+
+    return cropPercentToImagePixels(
+      cropArea,
+      canvas,
+      img.width,
+      img.height,
+      imageTransform
+    );
+  }, [cropArea, editMode, imageTransform]);
+
+  // Expose crop functions via window for external access
+  useEffect(() => {
+    if (editMode === 'crop') {
+      (window as any).__getCurrentCrop = getCurrentCrop;
+      (window as any).__confirmCrop = () => {
+        const crop = getCurrentCrop();
+        if (onCropConfirm) {
+          onCropConfirm(crop);
+        }
+      };
+      (window as any).__cancelCrop = () => {
+        if (onCropCancel) {
+          onCropCancel();
+        }
+      };
+    }
+    return () => {
+      delete (window as any).__getCurrentCrop;
+      delete (window as any).__confirmCrop;
+      delete (window as any).__cancelCrop;
+    };
+  }, [editMode, getCurrentCrop, onCropConfirm, onCropCancel]);
 
   // Expose reset function via window for external access
   useEffect(() => {
