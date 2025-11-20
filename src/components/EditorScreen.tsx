@@ -339,12 +339,12 @@ export function EditorScreen({
                 </div>
 
                 {/* Controls Sidebar */}
-                <div className="w-full lg:w-96 bg-white border-t lg:border-t-0 lg:border-l border-slate-200 overflow-hidden flex flex-col">
+                <div className="w-full lg:w-96 bg-white border-t lg:border-t-0 lg:border-l border-slate-200 flex flex-col h-full lg:h-auto shrink-0">
                     <Tabs
                         defaultValue="manual"
-                        className="flex-1 flex flex-col"
+                        className="flex-1 flex flex-col overflow-hidden h-full"
                     >
-                        <TabsList className="grid w-full grid-cols-2 rounded-none border-b">
+                        <TabsList className="grid w-full grid-cols-2 rounded-none border-b shrink-0">
                             <TabsTrigger value="manual" className="gap-2">
                                 <Sliders className="w-4 h-4" />
                                 <span className="hidden sm:inline">
@@ -361,7 +361,7 @@ export function EditorScreen({
 
                         <TabsContent
                             value="manual"
-                            className="flex-1 overflow-y-auto mt-0"
+                            className="flex-1 overflow-y-auto mt-0 data-[state=inactive]:hidden"
                         >
                             <EditorControls
                                 edits={displayEdits}
@@ -379,7 +379,7 @@ export function EditorScreen({
 
                         <TabsContent
                             value="ai"
-                            className="flex-1 overflow-hidden mt-0"
+                            className="flex-1 overflow-hidden mt-0 data-[state=inactive]:hidden"
                         >
                             <AIChatPanel
                                 onAICommand={handleAICommand}
