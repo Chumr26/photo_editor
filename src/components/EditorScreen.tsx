@@ -66,6 +66,7 @@ export function EditorScreen({
     const [processedImage, setProcessedImage] = useState<string>('');
     const [showAISettings, setShowAISettings] = useState(false);
     const [showAIPanel, setShowAIPanel] = useState(false);
+    const [tempEdits, setTempEdits] = useState<EditValues | null>(null);
     const [aiSettings, setAISettings] = useState<AISettings>(() => {
         // Load from localStorage
         const saved = localStorage.getItem('aiSettings');
@@ -79,16 +80,33 @@ export function EditorScreen({
               };
     });
 
+    // Get the edits to display (temp if available, otherwise current)
+    const displayEdits = tempEdits || currentEdits;
+
+    const handleEditChange = (key: keyof EditValues, value: any) => {
+        // For live preview during slider drag - don't add to history
+        setTempEdits({ ...currentEdits, [key]: value });
+    };
+
+    const handleEditCommit = (key: keyof EditValues, value: any) => {
+        // Commit to history when slider is released or button is clicked
+        updateCurrent(key, value);
+        setTempEdits(null);
+    };
+
     const handleUndo = () => {
         undo();
+        setTempEdits(null);
     };
 
     const handleRedo = () => {
         redo();
+        setTempEdits(null);
     };
 
     const handleResetEdits = () => {
         reset(initialEdits);
+        setTempEdits(null);
     };
 
     const handleCropChange = (crop: {
@@ -97,8 +115,8 @@ export function EditorScreen({
         width: number;
         height: number;
     }) => {
-        // Temporary update without committing to history
-        updateCurrent('crop', crop);
+        // Temporary update during crop drag - don't add to history
+        setTempEdits({ ...currentEdits, crop });
     };
 
     const handleCropEnd = (crop: {
@@ -107,11 +125,14 @@ export function EditorScreen({
         width: number;
         height: number;
     }) => {
+        // Commit to history when crop is finished
         updateCurrent('crop', crop);
+        setTempEdits(null);
     };
 
     const handleRotationChange = (rotation: number) => {
-        updateCurrent('rotation', rotation);
+        // Temporary update during rotation - don't add to history
+        setTempEdits({ ...currentEdits, rotation });
     };
 
     const handleAISaveSettings = (settings: AISettings) => {
@@ -265,12 +286,12 @@ export function EditorScreen({
                 <div className="flex-1 bg-slate-50 relative overflow-hidden">
                     <InteractiveImageCanvas
                         imageUrl={imageState.original}
-                        edits={currentEdits}
+                        edits={displayEdits}
                         onProcessed={setProcessedImage}
                         editMode={editMode}
                         onCropChange={handleCropChange}
                         onRotationChange={handleRotationChange}
-                        onEditEnd={() => currentEdits.crop && handleCropEnd(currentEdits.crop)}
+                        onEditEnd={() => displayEdits.crop && handleCropEnd(displayEdits.crop)}
                     />
                 </div>
 
@@ -300,9 +321,9 @@ export function EditorScreen({
                             className="flex-1 overflow-y-auto mt-0"
                         >
                             <EditorControls
-                                edits={currentEdits}
-                                onEditChange={(key, value) => updateCurrent(key, value)}
-                                onEditCommit={(key, value) => updateCurrent(key, value)}
+                                edits={displayEdits}
+                                onEditChange={handleEditChange}
+                                onEditCommit={handleEditCommit}
                                 editMode={editMode}
                                 onEditModeChange={setEditMode}
                             />
