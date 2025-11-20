@@ -395,42 +395,46 @@ export function EditorScreen({
                                 editMode={editMode}
                                 onEditModeChange={setEditMode}
                             />
-                            <AdvancedAdjustments
-                                edits={displayEdits}
-                                onEditChange={handleEditChange}
-                                onEditCommit={handleEditCommit}
-                            />
-                            <PresetFilters
-                                edits={displayEdits}
-                                onEditCommit={handleEditCommit}
-                            />
-                            <TextOverlayTool
-                                edits={displayEdits}
-                                onEditChange={handleOverlayChange}
-                                onEditCommit={handleOverlayCommit}
-                            />
-                            <ShapesTool
-                                edits={displayEdits}
-                                onEditChange={handleOverlayChange}
-                                onEditCommit={handleOverlayCommit}
-                            />
-                            <ImageOverlayTool
-                                edits={displayEdits}
-                                onEditChange={handleOverlayChange}
-                                onEditCommit={handleOverlayCommit}
-                            />
-                            
-                            {/* Before/After Button */}
-                            <div className="p-6 border-t border-slate-200">
-                                <Button
-                                    variant="outline"
-                                    onClick={() => setShowBeforeAfter(true)}
-                                    className="w-full"
-                                >
-                                    <SlidersHorizontal className="w-4 h-4 mr-2" />
-                                    So sánh trước/sau
-                                </Button>
-                            </div>
+                            {editMode === 'none' && (
+                                <>
+                                    <AdvancedAdjustments
+                                        edits={displayEdits}
+                                        onEditChange={handleEditChange}
+                                        onEditCommit={handleEditCommit}
+                                    />
+                                    <PresetFilters
+                                        edits={displayEdits}
+                                        onEditCommit={handleEditCommit}
+                                    />
+                                    <TextOverlayTool
+                                        edits={displayEdits}
+                                        onEditChange={handleOverlayChange}
+                                        onEditCommit={handleOverlayCommit}
+                                    />
+                                    <ShapesTool
+                                        edits={displayEdits}
+                                        onEditChange={handleOverlayChange}
+                                        onEditCommit={handleOverlayCommit}
+                                    />
+                                    <ImageOverlayTool
+                                        edits={displayEdits}
+                                        onEditChange={handleOverlayChange}
+                                        onEditCommit={handleOverlayCommit}
+                                    />
+                                    
+                                    {/* Before/After Button */}
+                                    <div className="p-6 border-t border-slate-200">
+                                        <Button
+                                            variant="outline"
+                                            onClick={() => setShowBeforeAfter(true)}
+                                            className="w-full"
+                                        >
+                                            <SlidersHorizontal className="w-4 h-4 mr-2" />
+                                            So sánh trước/sau
+                                        </Button>
+                                    </div>
+                                </>
+                            )}
                         </TabsContent>
 
                         <TabsContent
