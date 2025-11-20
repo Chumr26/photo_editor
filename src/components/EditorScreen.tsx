@@ -18,6 +18,7 @@ import {
     Sparkles,
     Sliders,
     History,
+    Maximize,
 } from 'lucide-react';
 
 interface EditorScreenProps {
@@ -67,6 +68,7 @@ export function EditorScreen({
     const [showAISettings, setShowAISettings] = useState(false);
     const [showAIPanel, setShowAIPanel] = useState(false);
     const [tempEdits, setTempEdits] = useState<EditValues | null>(null);
+    const [canvasZoom, setCanvasZoom] = useState(100);
     const [aiSettings, setAISettings] = useState<AISettings>(() => {
         // Load from localStorage
         const saved = localStorage.getItem('aiSettings');
@@ -135,6 +137,13 @@ export function EditorScreen({
         setTempEdits({ ...currentEdits, rotation });
     };
 
+    const handleResetView = () => {
+        // Trigger reset on canvas via window function
+        if ((window as any).__resetCanvasView) {
+            (window as any).__resetCanvasView();
+        }
+    };
+
     const handleAISaveSettings = (settings: AISettings) => {
         setAISettings(settings);
         // Save to localStorage
@@ -189,6 +198,22 @@ export function EditorScreen({
                         <h2 className="text-slate-900 hidden sm:block">
                             Chỉnh sửa ảnh
                         </h2>
+                        
+                        {/* Zoom Display and Reset View */}
+                        <div className="hidden md:flex items-center gap-2 ml-4 pl-4 border-l border-slate-200">
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleResetView}
+                                title="Đặt lại khung nhìn"
+                            >
+                                <Maximize className="w-4 h-4 mr-2" />
+                                Đặt lại khung nhìn
+                            </Button>
+                            <div className="text-sm text-slate-600 px-2 py-1 bg-slate-50 rounded">
+                                {canvasZoom}%
+                            </div>
+                        </div>
                     </div>
 
                     <div className="flex items-center gap-1 md:gap-2 flex-wrap">
@@ -292,6 +317,8 @@ export function EditorScreen({
                         onCropChange={handleCropChange}
                         onRotationChange={handleRotationChange}
                         onEditEnd={() => displayEdits.crop && handleCropEnd(displayEdits.crop)}
+                        onZoomChange={setCanvasZoom}
+                        onResetView={() => {}}
                     />
                 </div>
 

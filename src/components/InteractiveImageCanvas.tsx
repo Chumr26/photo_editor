@@ -9,6 +9,8 @@ interface InteractiveImageCanvasProps {
   onCropChange?: (crop: { x: number; y: number; width: number; height: number }) => void;
   onRotationChange?: (rotation: number) => void;
   onEditEnd?: (action: string) => void;
+  onZoomChange?: (zoom: number) => void;
+  onResetView?: () => void;
 }
 
 export function InteractiveImageCanvas({
@@ -19,6 +21,8 @@ export function InteractiveImageCanvas({
   onCropChange,
   onRotationChange,
   onEditEnd,
+  onZoomChange,
+  onResetView,
 }: InteractiveImageCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -706,6 +710,31 @@ export function InteractiveImageCanvas({
     e.preventDefault();
     e.stopPropagation();
   };
+
+  // Report zoom changes to parent
+  useEffect(() => {
+    if (onZoomChange) {
+      onZoomChange(Math.round(imageTransform.scale * 100));
+    }
+  }, [imageTransform.scale, onZoomChange]);
+
+  // Handle reset view
+  const handleResetView = useCallback(() => {
+    setImageTransform({ x: 0, y: 0, scale: 1 });
+    if (onResetView) {
+      onResetView();
+    }
+  }, [onResetView]);
+
+  // Expose reset function via window for external access
+  useEffect(() => {
+    if (onResetView) {
+      (window as any).__resetCanvasView = handleResetView;
+    }
+    return () => {
+      delete (window as any).__resetCanvasView;
+    };
+  }, [handleResetView, onResetView]);
 
   return (
     <div ref={containerRef} className="w-full h-full relative overflow-hidden">
