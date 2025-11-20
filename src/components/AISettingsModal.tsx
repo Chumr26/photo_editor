@@ -131,6 +131,21 @@ export function AISettingsModal({ onClose, onSave, currentSettings }: AISettings
 
           {/* Configuration Tab */}
           <TabsContent value="config" className="space-y-4 mt-4">
+            {/* Security Warning */}
+            <Alert className="border-amber-500 bg-amber-50">
+              <AlertCircle className="h-4 w-4 text-amber-600" />
+              <AlertDescription className="text-sm text-amber-800">
+                <strong>⚠️ Bảo mật quan trọng:</strong>
+                <ul className="list-disc ml-4 mt-2 space-y-1">
+                  <li>API key của bạn được lưu trong trình duyệt (localStorage)</li>
+                  <li>Không chia sẻ API key với người khác</li>
+                  <li>Không commit API key vào Git/GitHub</li>
+                  <li>Ứng dụng này gọi trực tiếp API từ trình duyệt (không qua backend)</li>
+                  <li>Để bảo mật tốt hơn trong production, nên sử dụng backend proxy</li>
+                </ul>
+              </AlertDescription>
+            </Alert>
+
             {/* Provider Selection */}
             <div className="space-y-3">
               <Label>Chọn AI Provider</Label>
@@ -203,7 +218,7 @@ export function AISettingsModal({ onClose, onSave, currentSettings }: AISettings
                 <Label htmlFor="model">Model</Label>
                 <Select
                   value={settings.model}
-                  onValueChange={(value) => setSettings({ ...settings, model: value })}
+                  onValueChange={(value: string) => setSettings({ ...settings, model: value })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Chọn model" />

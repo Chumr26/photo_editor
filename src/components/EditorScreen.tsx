@@ -13,6 +13,7 @@ import { ShapesTool } from './ShapesTool';
 import { ImageOverlayTool } from './ImageOverlayTool';
 import { BeforeAfterComparison } from './BeforeAfterComparison';
 import { useEditHistory } from '../hooks/useEditHistory';
+import { aiService } from '../services/ai';
 import { Button } from './ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import {
@@ -189,34 +190,99 @@ export function EditorScreen({
     };
 
     const handleAICommand = async (command: string) => {
-        // TODO: Implement AI command processing
-        // This is where you'll integrate with your AI API
-        console.log('AI Command:', command);
-        console.log('AI Settings:', aiSettings);
+        try {
+            console.log('Processing AI command:', command);
 
-        /*
-    Example implementation:
-    
-    const response = await fetch(`https://api.${aiSettings.provider}.com/v1/process`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${aiSettings.apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: aiSettings.model,
-        prompt: command,
-        image: imageState.original,
-      }),
-    });
-    
-    const result = await response.json();
-    // Apply the AI's suggested edits to currentEdits
-    */
+            // Get current canvas as base64 image
+            const canvas = document.querySelector('canvas');
+            if (!canvas) {
+                throw new Error('Không tìm thấy canvas');
+            }
 
-        throw new Error(
-            'AI integration TODO: Configure your AI API in settings'
-        );
+            const imageData = canvas.toDataURL('image/jpeg', 0.9);
+
+            // Process command with AI service
+            const response = await aiService.processCommand(
+                command,
+                imageData,
+                aiSettings
+            );
+
+            if (!response.success) {
+                throw new Error(response.error || 'Lỗi không xác định');
+            }
+
+            // Handle different response types
+            if (response.type === 'image' && response.imageUrl) {
+                // Background removal or style transfer - load new image
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                
+                await new Promise((resolve, reject) => {
+                    img.onload = resolve;
+                    img.onerror = reject;
+                    img.src = response.imageUrl!;
+                });
+
+                // Create canvas with new image
+                const newCanvas = document.createElement('canvas');
+                newCanvas.width = img.width;
+                newCanvas.height = img.height;
+                const ctx = newCanvas.getContext('2d')!;
+                ctx.drawImage(img, 0, 0);
+
+                // Update image state with new processed image
+                const newImageData = newCanvas.toDataURL('image/png');
+                setImageState({
+                    ...imageState,
+                    original: newImageData,
+                });
+
+                // Reset edits to initial state to show new image
+                reset(initialEdits);
+
+                console.log('✓', response.message || 'Đã xử lý thành công!');
+            } 
+            else if (response.type === 'edits' && response.edits) {
+                // Edit suggestions - apply to current edits
+                const newEdits: EditValues = {
+                    ...currentEdits,
+                };
+
+                // Apply suggested adjustments
+                if (response.edits.brightness !== undefined) {
+                    newEdits.brightness = Math.max(0, Math.min(200, 100 + response.edits.brightness));
+                }
+                if (response.edits.contrast !== undefined) {
+                    newEdits.contrast = Math.max(0, Math.min(200, 100 + response.edits.contrast));
+                }
+                if (response.edits.saturation !== undefined) {
+                    newEdits.saturation = Math.max(0, Math.min(200, 100 + response.edits.saturation));
+                }
+                if (response.edits.temperature !== undefined) {
+                    newEdits.temperature = Math.max(-100, Math.min(100, response.edits.temperature));
+                }
+                if (response.edits.blur !== undefined) {
+                    newEdits.blur = Math.max(0, Math.min(20, response.edits.blur));
+                }
+                if (response.edits.sharpen !== undefined) {
+                    newEdits.sharpen = Math.max(0, Math.min(100, response.edits.sharpen));
+                }
+                if (response.edits.vignette !== undefined) {
+                    newEdits.vignette = Math.max(0, Math.min(100, response.edits.vignette));
+                }
+
+                // Add to history
+                addToHistory(newEdits);
+
+                console.log('✓', response.message || 'Đã áp dụng chỉnh sửa!');
+            } else {
+                console.log('✓', response.message || 'Đã xử lý xong!');
+            }
+        } catch (error) {
+            console.error('AI command error:', error);
+            throw error;
+        }
     };
 
     return (

@@ -19,9 +19,10 @@ import { Alert, AlertDescription } from './ui/alert';
 
 interface Message {
   id: string;
-  type: 'user' | 'ai' | 'system';
+  type: 'user' | 'ai' | 'system' | 'progress';
   content: string;
   timestamp: Date;
+  isComplete?: boolean; // For progress messages
 }
 
 interface AIChatPanelProps {
@@ -86,13 +87,45 @@ export function AIChatPanel({ onAICommand, onOpenSettings, isConfigured }: AICha
     addMessage('user', userMessage);
     setIsProcessing(true);
 
+    // Add progress message
+    const progressId = Date.now().toString();
+    const progressMessage: Message = {
+      id: progressId,
+      type: 'progress',
+      content: '🔄 Đang phân tích lệnh...',
+      timestamp: new Date(),
+      isComplete: false,
+    };
+    setMessages(prev => [...prev, progressMessage]);
+
     try {
+      // Update progress: Analyzing
+      setTimeout(() => {
+        setMessages(prev => prev.map(m => 
+          m.id === progressId 
+            ? { ...m, content: '🖼️ Đang chuẩn bị ảnh...' }
+            : m
+        ));
+      }, 500);
+
+      // Update progress: Processing
+      setTimeout(() => {
+        setMessages(prev => prev.map(m => 
+          m.id === progressId 
+            ? { ...m, content: '⚙️ Đang xử lý với AI...' }
+            : m
+        ));
+      }, 1000);
+
       // Call the AI command handler
       await onAICommand(userMessage);
-      
-      // Simulate AI response (replace with actual AI response)
-      addMessage('ai', `Đã hiểu! Tôi sẽ thực hiện: "${userMessage}". Chức năng này đang được phát triển và cần cấu hình API key.`);
+
+      // Mark progress as complete and add success message
+      setMessages(prev => prev.filter(m => m.id !== progressId));
+      addMessage('ai', '✅ Hoàn thành! Đã áp dụng chỉnh sửa vào ảnh của bạn.');
     } catch (error) {
+      // Remove progress message and show error
+      setMessages(prev => prev.filter(m => m.id !== progressId));
       addMessage('system', `❌ Lỗi: ${error instanceof Error ? error.message : 'Không thể xử lý yêu cầu'}`);
     } finally {
       setIsProcessing(false);
@@ -197,6 +230,8 @@ export function AIChatPanel({ onAICommand, onOpenSettings, isConfigured }: AICha
                     ? 'bg-blue-500 text-white'
                     : message.type === 'ai'
                     ? 'bg-gradient-to-r from-purple-100 to-blue-100 text-slate-900'
+                    : message.type === 'progress'
+                    ? 'bg-amber-50 border border-amber-200 text-amber-900'
                     : 'bg-slate-100 text-slate-700'
                 }`}
               >
@@ -204,6 +239,12 @@ export function AIChatPanel({ onAICommand, onOpenSettings, isConfigured }: AICha
                   <div className="flex items-center gap-2 mb-1">
                     <Wand2 className="w-3 h-3" />
                     <span className="text-xs font-medium">AI Assistant</span>
+                  </div>
+                )}
+                {message.type === 'progress' && (
+                  <div className="flex items-center gap-2 mb-1">
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    <span className="text-xs font-medium">Đang xử lý</span>
                   </div>
                 )}
                 <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
@@ -216,17 +257,6 @@ export function AIChatPanel({ onAICommand, onOpenSettings, isConfigured }: AICha
               </div>
             </div>
           ))}
-
-          {isProcessing && (
-            <div className="flex justify-start">
-              <div className="bg-gradient-to-r from-purple-100 to-blue-100 rounded-2xl px-4 py-3">
-                <div className="flex items-center gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span className="text-sm">AI đang xử lý...</span>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </ScrollArea>
 
