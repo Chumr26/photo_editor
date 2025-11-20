@@ -5,8 +5,9 @@ import { Switch } from './ui/switch';
 import { Label } from './ui/label';
 import { Input } from './ui/input';
 import { Separator } from './ui/separator';
-import { Droplet, Palette, Sun, Contrast, FlipHorizontal2, FlipVertical2, Crop, Maximize2, Frame, Expand, RotateCw, RotateCcw, Check, X } from 'lucide-react';
-import { useState } from 'react';
+import { Droplet, Palette, Sun, Contrast, FlipHorizontal2, FlipVertical2, Crop, Maximize2, Frame, Expand, RotateCw, RotateCcw, Check, X, Lock, Unlock, ArrowLeftRight } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ASPECT_RATIO_PRESETS, formatRatio, flipRatioOrientation, AspectRatio } from '../utils/aspectRatio.utils';
 
 interface EditorControlsProps {
   edits: EditValues;
@@ -22,6 +23,96 @@ export function EditorControls({ edits, onEditChange, onEditCommit, editMode, on
   const [rotationInput, setRotationInput] = useState(edits.rotation);
   const [resizeWidth, setResizeWidth] = useState(1000);
   const [resizeHeight, setResizeHeight] = useState(1000);
+  const [customRatioWidth, setCustomRatioWidth] = useState('16');
+  const [customRatioHeight, setCustomRatioHeight] = useState('9');
+
+  // Load aspect ratio preferences on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('aspectRatioPreferences');
+      if (saved) {
+        const prefs = JSON.parse(saved);
+        if (prefs.lastUsedRatio && editMode === 'crop' && !edits.cropAspectRatio) {
+          // Optionally restore last used ratio
+          // onEditCommit('cropAspectRatio', prefs.lastUsedRatio);
+          // onEditCommit('cropAspectRatioLocked', prefs.isLocked);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load aspect ratio preferences:', error);
+    }
+  }, []);
+
+  // Save aspect ratio preferences when they change
+  useEffect(() => {
+    if (editMode === 'crop' && edits.cropAspectRatio) {
+      try {
+        const prefs = {
+          lastUsedRatio: edits.cropAspectRatio,
+          isLocked: edits.cropAspectRatioLocked,
+          customRatios: [], // Can be extended later
+        };
+        localStorage.setItem('aspectRatioPreferences', JSON.stringify(prefs));
+      } catch (error) {
+        console.error('Failed to save aspect ratio preferences:', error);
+      }
+    }
+  }, [editMode, edits.cropAspectRatio, edits.cropAspectRatioLocked]);
+
+  // Keyboard shortcuts for crop mode
+  useEffect(() => {
+    if (editMode !== 'crop') return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if typing in input field
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      switch (e.key.toLowerCase()) {
+        case 'l':
+          // Toggle lock/unlock
+          e.preventDefault();
+          const newLocked = !edits.cropAspectRatioLocked;
+          onEditChange('cropAspectRatioLocked', newLocked);
+          if (!newLocked) {
+            onEditChange('cropAspectRatio', null);
+          }
+          onEditCommit('cropAspectRatioLocked', newLocked);
+          break;
+        
+        case 'f':
+          // Free crop (unlock)
+          e.preventDefault();
+          onEditChange('cropAspectRatioLocked', false);
+          onEditChange('cropAspectRatio', null);
+          onEditCommit('cropAspectRatioLocked', false);
+          break;
+
+        case '1':
+        case '2':
+        case '3':
+        case '4':
+        case '5':
+        case '6':
+        case '7':
+        case '8':
+          // Apply preset ratios (1-8)
+          e.preventDefault();
+          const presetIndex = parseInt(e.key) - 1;
+          if (presetIndex < ASPECT_RATIO_PRESETS.length) {
+            const preset = ASPECT_RATIO_PRESETS[presetIndex];
+            onEditChange('cropAspectRatio', preset.ratio);
+            onEditChange('cropAspectRatioLocked', true);
+            onEditCommit('cropAspectRatio', preset.ratio);
+          }
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [editMode, edits.cropAspectRatioLocked, onEditCommit]);
   return (
     <div className="p-6 space-y-6">
       {editMode === 'none' && (
@@ -166,18 +257,41 @@ export function EditorControls({ edits, onEditChange, onEditCommit, editMode, on
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h3>Cắt ảnh</h3>
-            <Button
+            {/* <Button
               variant="ghost"
               size="sm"
               onClick={() => onEditModeChange('none')}
             >
               <X className="w-4 h-4" />
-            </Button>
+            </Button> */}
           </div>
           
-          <div className="bg-blue-50 p-4 rounded-lg text-sm text-slate-700">
+          {/* <div className="bg-blue-50 p-4 rounded-lg text-sm text-slate-700">
             💡 Kéo trên ảnh để chọn vùng cắt. Kéo ra ngoài ảnh để mở rộng canvas.
-          </div>
+          </div> */}
+
+          {/* Crop Dimensions Info Display */}
+          {edits.crop && (
+            <div className="bg-slate-50 p-3 rounded-lg space-y-2 text-sm border border-slate-200">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-600">Kích thước:</span>
+                <span className="font-mono font-semibold text-slate-900">
+                  {edits.crop.width} × {edits.crop.height}
+                </span>
+              </div>
+              {edits.cropAspectRatio && (
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-600">Tỉ lệ:</span>
+                  <span className="font-mono font-semibold text-blue-600">
+                    {edits.cropAspectRatio.width}:{edits.cropAspectRatio.height}
+                    <span className="text-slate-500 ml-2">
+                      ({(edits.cropAspectRatio.width / edits.cropAspectRatio.height).toFixed(2)}:1)
+                    </span>
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
 
           <Separator className="my-4" />
 
@@ -218,6 +332,186 @@ export function EditorControls({ edits, onEditChange, onEditCommit, editMode, on
             <p className="text-xs text-slate-500">
               Màu sẽ hiển thị khi vùng cắt mở rộng ra ngoài ảnh gốc
             </p>
+          </div>
+
+          <Separator className="my-4" />
+
+          {/* Aspect Ratio Controls */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-medium">Tỉ lệ khung hình</Label>
+              <Button
+                variant={edits.cropAspectRatioLocked ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => {
+                  const newLocked = !edits.cropAspectRatioLocked;
+                  onEditChange('cropAspectRatioLocked', newLocked);
+                  // If unlocking, clear the ratio
+                  if (!newLocked) {
+                    onEditChange('cropAspectRatio', null);
+                  }
+                  onEditCommit('cropAspectRatioLocked', newLocked);
+                }}
+                className="h-8"
+                title={edits.cropAspectRatioLocked ? 'Mở khóa tỉ lệ' : 'Khóa tỉ lệ'}
+              >
+                {edits.cropAspectRatioLocked ? (
+                  <><Lock className="w-3 h-3 mr-1" />Đã khóa</>
+                ) : (
+                  <><Unlock className="w-3 h-3 mr-1" />Tự do</>
+                )}
+              </Button>
+            </div>
+
+            {/* Keyboard shortcuts hint */}
+            <div className="text-xs text-slate-500 bg-slate-50 p-2 rounded border border-slate-200">
+              <span className="font-semibold">Phím tắt:</span> L=Khóa/Mở, F=Tự do, 1-8=Tỉ lệ nhanh
+            </div>
+
+            {/* Current Ratio Display */}
+            {edits.cropAspectRatio && (
+              <div className="flex items-center justify-between p-2 bg-blue-50 rounded text-sm">
+                <span className="text-slate-700">Tỉ lệ hiện tại:</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-mono font-semibold text-blue-600">
+                    {formatRatio(edits.cropAspectRatio)}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      const flipped = flipRatioOrientation(edits.cropAspectRatio!);
+                      onEditCommit('cropAspectRatio', flipped);
+                    }}
+                    className="h-6 w-6 p-0"
+                    title="Đổi hướng tỉ lệ"
+                  >
+                    <ArrowLeftRight className="w-3 h-3" />
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Preset Ratios */}
+            <div className="space-y-2">
+              <p className="text-xs text-slate-500">Tỉ lệ thông dụng:</p>
+              <div className="grid grid-cols-3 gap-2">
+                {ASPECT_RATIO_PRESETS.slice(0, 6).map((preset) => (
+                  <Button
+                    key={preset.id}
+                    variant={
+                      edits.cropAspectRatio &&
+                      edits.cropAspectRatio.width === preset.ratio.width &&
+                      edits.cropAspectRatio.height === preset.ratio.height
+                        ? 'default'
+                        : 'outline'
+                    }
+                    size="sm"
+                    onClick={() => {
+                      // Update both ratio and lock state together
+                      onEditChange('cropAspectRatio', preset.ratio);
+                      onEditChange('cropAspectRatioLocked', true);
+                      // Then commit
+                      onEditCommit('cropAspectRatio', preset.ratio);
+                    }}
+                    className="text-xs"
+                  >
+                    {preset.label}
+                  </Button>
+                ))}
+              </div>
+              {/* Second row of presets */}
+              <div className="grid grid-cols-3 gap-2">
+                {ASPECT_RATIO_PRESETS.slice(6).map((preset) => (
+                  <Button
+                    key={preset.id}
+                    variant={
+                      edits.cropAspectRatio &&
+                      edits.cropAspectRatio.width === preset.ratio.width &&
+                      edits.cropAspectRatio.height === preset.ratio.height
+                        ? 'default'
+                        : 'outline'
+                    }
+                    size="sm"
+                    onClick={() => {
+                      // Update both ratio and lock state together
+                      onEditChange('cropAspectRatio', preset.ratio);
+                      onEditChange('cropAspectRatioLocked', true);
+                      // Then commit
+                      onEditCommit('cropAspectRatio', preset.ratio);
+                    }}
+                    className="text-xs"
+                  >
+                    {preset.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            {/* Custom Ratio Input */}
+            <div className="space-y-2">
+              <p className="text-xs text-slate-500">Tỉ lệ tùy chỉnh:</p>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  min="1"
+                  value={customRatioWidth}
+                  onChange={(e) => setCustomRatioWidth(e.target.value)}
+                  placeholder="W"
+                  className="w-20 text-sm text-center"
+                />
+                <span className="text-slate-500">:</span>
+                <Input
+                  type="number"
+                  min="1"
+                  value={customRatioHeight}
+                  onChange={(e) => setCustomRatioHeight(e.target.value)}
+                  placeholder="H"
+                  className="w-20 text-sm text-center"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const w = parseInt(customRatioWidth);
+                    const h = parseInt(customRatioHeight);
+                    if (w > 0 && h > 0) {
+                      const ratio: AspectRatio = { width: w, height: h };
+                      // Update both ratio and lock state together
+                      onEditChange('cropAspectRatio', ratio);
+                      onEditChange('cropAspectRatioLocked', true);
+                      // Then commit
+                      onEditCommit('cropAspectRatio', ratio);
+                    }
+                  }}
+                  disabled={
+                    !customRatioWidth ||
+                    !customRatioHeight ||
+                    parseInt(customRatioWidth) <= 0 ||
+                    parseInt(customRatioHeight) <= 0
+                  }
+                >
+                  Áp dụng
+                </Button>
+              </div>
+            </div>
+
+            {/* Free Crop Button */}
+            {edits.cropAspectRatioLocked && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  onEditChange('cropAspectRatioLocked', false);
+                  onEditChange('cropAspectRatio', null);
+                  onEditCommit('cropAspectRatioLocked', false);
+                }}
+                className="w-full"
+              >
+                <Unlock className="w-4 h-4 mr-2" />
+                Chuyển sang cắt tự do
+              </Button>
+            )}
           </div>
 
           <Separator className="my-4" />

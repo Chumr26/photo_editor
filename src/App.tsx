@@ -80,6 +80,8 @@ export interface EditValues {
     rotation: number;
     crop: { x: number; y: number; width: number; height: number } | null;
     cropBackgroundColor: string; // Color for extended crop areas (hex or 'transparent')
+    cropAspectRatio: { width: number; height: number } | null; // Locked aspect ratio for crop (null = free)
+    cropAspectRatioLocked: boolean; // Whether aspect ratio is locked
     frame: {
         width: number;
         height: number;

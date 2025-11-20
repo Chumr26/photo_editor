@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { EditValues } from '../App';
 import { cropPercentToImagePixels, cropImagePixelsToPercent, calculateImageDisplayBounds } from '../utils/crop.utils';
+import { applyAspectRatioConstraint, getRatioDecimal, detectPresetRatio, AspectRatioPreset } from '../utils/aspectRatio.utils';
 
 /**
  * InteractiveImageCanvas - Main canvas component for image editing
@@ -70,6 +71,7 @@ export function InteractiveImageCanvas({
   const [isDragging, setIsDragging] = useState(false);
   const [draggedPart, setDraggedPart] = useState<'tl' | 'tr' | 'bl' | 'br' | 't' | 'r' | 'b' | 'l' | 'box' | null>(null);
   const [dragStartOffset, setDragStartOffset] = useState({ x: 0, y: 0 });
+  const [detectedRatio, setDetectedRatio] = useState<AspectRatioPreset | null>(null);
   
   // Use refs for immediate access during drag operations
   const draggedPartRef = useRef<'tl' | 'tr' | 'bl' | 'br' | 't' | 'r' | 'b' | 'l' | 'box' | null>(null);
@@ -119,6 +121,46 @@ export function InteractiveImageCanvas({
       }
     }
   }, [editMode, isImageLoaded, edits.crop, imageTransform]);
+
+  // Apply aspect ratio constraint when ratio changes in crop mode
+  useEffect(() => {
+    if (editMode === 'crop' && edits.cropAspectRatioLocked && edits.cropAspectRatio && canvasRef.current) {
+      const canvas = canvasRef.current;
+      
+      // Convert current crop area from percentage to pixels
+      const pixelWidth = (cropArea.width / 100) * canvas.width;
+      const pixelHeight = (cropArea.height / 100) * canvas.height;
+      
+      // Calculate target ratio
+      const targetRatio = edits.cropAspectRatio.width / edits.cropAspectRatio.height;
+      const currentRatio = pixelWidth / pixelHeight;
+      
+      let newWidth = pixelWidth;
+      let newHeight = pixelHeight;
+      
+      // Expand to maintain or increase size (not shrink)
+      if (Math.abs(currentRatio - targetRatio) > 0.001) {
+        if (targetRatio > currentRatio) {
+          // Target is wider - expand width
+          newWidth = pixelHeight * targetRatio;
+        } else {
+          // Target is taller - expand height
+          newHeight = pixelWidth / targetRatio;
+        }
+      }
+      
+      // Convert back to percentage
+      const newWidthPercent = (newWidth / canvas.width) * 100;
+      const newHeightPercent = (newHeight / canvas.height) * 100;
+      
+      // Keep the same top-left position
+      setCropArea(prev => ({
+        ...prev,
+        width: newWidthPercent,
+        height: newHeightPercent,
+      }));
+    }
+  }, [editMode, edits.cropAspectRatio, edits.cropAspectRatioLocked]);
 
   // Resize canvas to fill parent
   useEffect(() => {
@@ -497,9 +539,9 @@ export function InteractiveImageCanvas({
     // Draw crop overlay if in crop mode
     // NOTE: cropArea is in canvas percentage (0-100%), converted to pixels here for drawing
     if (editMode === 'crop') {
-      // Dark overlay
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      // Dark overlay - REMOVED to allow eyepicker color selection
+      // ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+      // ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       // Calculate crop rectangle position (convert percentage to pixels)
       const cropX = (cropArea.x / 100) * canvas.width;
@@ -515,11 +557,11 @@ export function InteractiveImageCanvas({
         imageTransform
       );
 
-      // Clear crop area (make it visible)
-      ctx.save();
-      ctx.globalCompositeOperation = 'destination-out';
-      ctx.fillRect(cropX, cropY, cropW, cropH);
-      ctx.restore();
+      // Clear crop area (make it visible) - NO LONGER NEEDED since no overlay
+      // ctx.save();
+      // ctx.globalCompositeOperation = 'destination-out';
+      // ctx.fillRect(cropX, cropY, cropW, cropH);
+      // ctx.restore();
 
       // Fill extended areas with crop background color
       ctx.save();
@@ -587,11 +629,85 @@ export function InteractiveImageCanvas({
         ctx.fillRect(x - handleSize / 2, y - handleSize / 2, handleSize, handleSize);
         ctx.strokeRect(x - handleSize / 2, y - handleSize / 2, handleSize, handleSize);
       });
+
+      // Show lock indicator and ratio text when aspect ratio is locked
+      if (edits.cropAspectRatioLocked && edits.cropAspectRatio) {
+        // Draw lock icon badge
+        ctx.save();
+        const badgeSize = 24;
+        const badgeX = cropX + cropW - badgeSize - 5;
+        const badgeY = cropY - badgeSize - 5;
+        
+        // Badge background
+        ctx.fillStyle = '#3b82f6';
+        ctx.fillRect(badgeX, badgeY, badgeSize, badgeSize);
+        
+        // Lock icon (simplified)
+        ctx.strokeStyle = '#ffffff';
+        ctx.fillStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        
+        // Lock body
+        const lockX = badgeX + badgeSize / 2;
+        const lockY = badgeY + badgeSize / 2 + 2;
+        ctx.fillRect(lockX - 4, lockY - 2, 8, 6);
+        
+        // Lock shackle
+        ctx.beginPath();
+        ctx.arc(lockX, lockY - 3, 3, Math.PI, 0, true);
+        ctx.stroke();
+        
+        ctx.restore();
+
+        // Draw ratio text
+        ctx.save();
+        const ratioText = `${edits.cropAspectRatio.width}:${edits.cropAspectRatio.height}`;
+        ctx.font = 'bold 14px system-ui';
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 3;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        
+        const textX = cropX + cropW / 2;
+        const textY = cropY - 10;
+        
+        // Draw text with outline for visibility
+        ctx.strokeText(ratioText, textX, textY);
+        ctx.fillText(ratioText, textX, textY);
+        ctx.restore();
+      }
+
+      // Show detected ratio badge when not locked
+      if (!edits.cropAspectRatioLocked && detectedRatio && isDragging) {
+        ctx.save();
+        const badgeWidth = 80;
+        const badgeHeight = 24;
+        const badgeX = cropX + (cropW - badgeWidth) / 2;
+        const badgeY = cropY + cropH + 10;
+        
+        // Badge background
+        ctx.fillStyle = 'rgba(34, 197, 94, 0.95)'; // Green
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(badgeX, badgeY, badgeWidth, badgeHeight, 4);
+        ctx.fill();
+        ctx.stroke();
+        
+        // Badge text
+        ctx.font = 'bold 12px system-ui';
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`≈ ${detectedRatio.label}`, badgeX + badgeWidth / 2, badgeY + badgeHeight / 2);
+        ctx.restore();
+      }
     }
 
     // Export processed image
     onProcessed(canvas.toDataURL('image/png'));
-  }, [imageUrl, edits, onProcessed, isImageLoaded, editMode, cropArea, imageTransform, isTransforming]);
+  }, [imageUrl, edits, onProcessed, isImageLoaded, editMode, cropArea, imageTransform, isTransforming, detectedRatio, isDragging]);
 
   useEffect(() => {
     drawCanvas();
@@ -836,6 +952,7 @@ export function InteractiveImageCanvas({
               prevX = newX;
               break;
             case 'box':
+              // Moving the box shouldn't constrain aspect ratio
               prevX = newX - dragStartOffsetRef.current.x;
               prevY = newY - dragStartOffsetRef.current.y;
               break;
@@ -848,6 +965,7 @@ export function InteractiveImageCanvas({
               };
           }
 
+          // Handle negative dimensions
           if (prevW < 0) {
             prevX += prevW;
             prevW = Math.abs(prevW);
@@ -857,9 +975,48 @@ export function InteractiveImageCanvas({
             prevH = Math.abs(prevH);
           }
 
+          // Apply aspect ratio constraint if locked
+          if (edits.cropAspectRatioLocked && edits.cropAspectRatio && currentDraggedPart !== 'box') {
+            const constrained = applyAspectRatioConstraint(
+              prevW,
+              prevH,
+              edits.cropAspectRatio,
+              currentDraggedPart || 'br'
+            );
+            
+            // Adjust position based on which handle is being dragged
+            const widthDiff = constrained.width - prevW;
+            const heightDiff = constrained.height - prevH;
+            
+            // For top/left handles, adjust position to maintain opposite corner
+            if (currentDraggedPart?.includes('t')) {
+              prevY -= heightDiff;
+            }
+            if (currentDraggedPart?.includes('l')) {
+              prevX -= widthDiff;
+            }
+            
+            prevW = constrained.width;
+            prevH = constrained.height;
+          }
+
           // Remove boundary constraints to allow extended crop
           // prevX = Math.max(0, Math.min(100 - prevW, prevX));
           // prevY = Math.max(0, Math.min(100 - prevH, prevY));
+
+          // Detect ratio if not locked
+          if (!edits.cropAspectRatioLocked && prevW > 0 && prevH > 0) {
+            const canvas = canvasRef.current;
+            if (canvas) {
+              // Convert percentage dimensions to pixel dimensions for ratio detection
+              const pixelWidth = (prevW / 100) * canvas.width;
+              const pixelHeight = (prevH / 100) * canvas.height;
+              const detected = detectPresetRatio(pixelWidth, pixelHeight, 0.05);
+              setDetectedRatio(detected);
+            }
+          } else {
+            setDetectedRatio(null);
+          }
 
           return { x: prevX, y: prevY, width: prevW, height: prevH };
         });

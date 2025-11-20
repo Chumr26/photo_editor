@@ -53,6 +53,8 @@ export function EditorScreen({
         rotation: 0,
         crop: null,
         cropBackgroundColor: '#ffffff', // Default to white
+        cropAspectRatio: null, // Free crop by default
+        cropAspectRatioLocked: false, // Unlocked by default
         frame: null,
         resize: null,
 
