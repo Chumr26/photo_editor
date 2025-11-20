@@ -12,6 +12,8 @@ interface TextOverlayToolProps {
   edits: EditValues;
   onEditChange: (updates: Partial<EditValues>) => void;
   onEditCommit: (updates: Partial<EditValues>) => void;
+  selectedTextId?: string | null;
+  onTextSelect?: (textId: string | null) => void;
 }
 
 const fontFamilies = [
@@ -26,8 +28,26 @@ const fontFamilies = [
   { value: 'Trebuchet MS', label: 'Trebuchet MS' },
 ];
 
-export function TextOverlayTool({ edits, onEditChange, onEditCommit }: TextOverlayToolProps) {
-  const [selectedTextId, setSelectedTextId] = useState<string | null>(null);
+export function TextOverlayTool({ 
+  edits, 
+  onEditChange, 
+  onEditCommit,
+  selectedTextId: externalSelectedTextId,
+  onTextSelect
+}: TextOverlayToolProps) {
+  const [internalSelectedTextId, setInternalSelectedTextId] = useState<string | null>(null);
+  
+  // Use external selection if provided, otherwise use internal
+  const selectedTextId = externalSelectedTextId !== undefined ? externalSelectedTextId : internalSelectedTextId;
+  
+  // Helper to update selection
+  const handleTextSelect = (textId: string | null) => {
+    if (onTextSelect) {
+      onTextSelect(textId);
+    } else {
+      setInternalSelectedTextId(textId);
+    }
+  };
 
   const handleAddText = () => {
     const newText: TextOverlay = {
@@ -46,7 +66,7 @@ export function TextOverlayTool({ edits, onEditChange, onEditCommit }: TextOverl
     };
     const updatedTexts = [...edits.textOverlays, newText];
     onEditCommit({ textOverlays: updatedTexts });
-    setSelectedTextId(newText.id);
+    handleTextSelect(newText.id);
   };
 
   const handleUpdateText = (id: string, updates: Partial<TextOverlay>, commit: boolean = false) => {
@@ -64,7 +84,7 @@ export function TextOverlayTool({ edits, onEditChange, onEditCommit }: TextOverl
     const updatedTexts = edits.textOverlays.filter(t => t.id !== id);
     onEditCommit({ textOverlays: updatedTexts });
     if (selectedTextId === id) {
-      setSelectedTextId(null);
+      handleTextSelect(null);
     }
   };
 
@@ -97,7 +117,7 @@ export function TextOverlayTool({ edits, onEditChange, onEditCommit }: TextOverl
                     ? 'border-blue-500 bg-blue-50'
                     : 'border-slate-200 hover:border-slate-300'
                 }`}
-                onClick={() => setSelectedTextId(text.id)}
+                onClick={() => handleTextSelect(text.id)}
               >
                 <div className="flex items-center justify-between">
                   <span className="text-sm truncate flex-1">{text.text}</span>

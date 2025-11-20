@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { EditValues } from '../App';
 import { cropPercentToImagePixels, cropImagePixelsToPercent, calculateImageDisplayBounds } from '../utils/crop.utils';
 import { applyAspectRatioConstraint, getRatioDecimal, detectPresetRatio, AspectRatioPreset } from '../utils/aspectRatio.utils';
+import { TextBounds, isPointInRotatedRect } from '../utils/text.utils';
 
 /**
  * InteractiveImageCanvas - Main canvas component for image editing
@@ -29,6 +30,10 @@ interface InteractiveImageCanvasProps {
   onRotationChange?: (rotation: number) => void;
   onZoomChange?: (zoom: number) => void;
   onResetView?: () => void;
+  onEditChange?: (updates: Partial<EditValues>) => void;
+  onEditCommit?: (updates: Partial<EditValues>) => void;
+  selectedTextId?: string | null;
+  onTextSelect?: (textId: string | null) => void;
 }
 
 export function InteractiveImageCanvas({
@@ -41,6 +46,10 @@ export function InteractiveImageCanvas({
   onRotationChange,
   onZoomChange,
   onResetView,
+  onEditChange,
+  onEditCommit,
+  selectedTextId: externalSelectedTextId,
+  onTextSelect,
 }: InteractiveImageCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -77,6 +86,41 @@ export function InteractiveImageCanvas({
   const draggedPartRef = useRef<'tl' | 'tr' | 'bl' | 'br' | 't' | 'r' | 'b' | 'l' | 'box' | null>(null);
   const dragStartOffsetRef = useRef({ x: 0, y: 0 });
 
+  // Text selection and interaction state
+  const [internalSelectedTextId, setInternalSelectedTextId] = useState<string | null>(null);
+  
+  // Use external selection if provided, otherwise use internal
+  const selectedTextId = externalSelectedTextId !== undefined ? externalSelectedTextId : internalSelectedTextId;
+  
+  // Helper to update selection
+  const handleTextSelect = (textId: string | null) => {
+    if (onTextSelect) {
+      onTextSelect(textId);
+    } else {
+      setInternalSelectedTextId(textId);
+    }
+  };
+  
+  const [hoveredTextId, setHoveredTextId] = useState<string | null>(null);
+  const [textBoundsCache, setTextBoundsCache] = useState<Map<string, TextBounds>>(new Map());
+  const [isDraggingText, setIsDraggingText] = useState(false);
+  const [textDragOffset, setTextDragOffset] = useState({ x: 0, y: 0 });
+  const [isResizingText, setIsResizingText] = useState(false);
+  const [resizeHandle, setResizeHandle] = useState<'tl' | 'tr' | 'bl' | 'br' | 't' | 'r' | 'b' | 'l' | null>(null);
+  const [isRotatingText, setIsRotatingText] = useState(false);
+  const [initialTextState, setInitialTextState] = useState<{ fontSize: number; x: number; y: number; width: number; height: number; rotation?: number } | null>(null);
+  
+  // Use refs for text interaction
+  const selectedTextIdRef = useRef<string | null>(null);
+  const textDragOffsetRef = useRef({ x: 0, y: 0 });
+  const resizeHandleRef = useRef<'tl' | 'tr' | 'bl' | 'br' | 't' | 'r' | 'b' | 'l' | null>(null);
+  const initialTextStateRef = useRef<{ fontSize: number; x: number; y: number; width: number; height: number; rotation?: number } | null>(null);
+  
+  // Sync selectedTextIdRef when selectedTextId changes
+  useEffect(() => {
+    selectedTextIdRef.current = selectedTextId;
+  }, [selectedTextId]);
+
   // Load image
   useEffect(() => {
     const img = new Image();
@@ -93,6 +137,23 @@ export function InteractiveImageCanvas({
 
     img.src = imageUrl;
   }, [imageUrl]);
+
+  // Sync text interaction state with refs for immediate access during drag operations
+  useEffect(() => {
+    selectedTextIdRef.current = selectedTextId;
+  }, [selectedTextId]);
+
+  useEffect(() => {
+    textDragOffsetRef.current = textDragOffset;
+  }, [textDragOffset]);
+
+  useEffect(() => {
+    resizeHandleRef.current = resizeHandle;
+  }, [resizeHandle]);
+
+  useEffect(() => {
+    initialTextStateRef.current = initialTextState;
+  }, [initialTextState]);
 
   // Initialize crop area when entering crop mode
   useEffect(() => {
@@ -505,6 +566,8 @@ export function InteractiveImageCanvas({
 
       // Draw text overlays
       if (edits.textOverlays && edits.textOverlays.length > 0) {
+        const newTextBounds = new Map<string, TextBounds>();
+        
         edits.textOverlays.forEach((text) => {
           ctx.save();
           
@@ -514,6 +577,31 @@ export function InteractiveImageCanvas({
           const textX = imgX + (text.x * overlayScale);
           const textY = imgY + (text.y * overlayScale);
           
+          // Set font properties for measurement
+          const fontSize = text.fontSize * overlayScale;
+          ctx.font = `${text.fontStyle} ${text.fontWeight} ${fontSize}px ${text.fontFamily}`;
+          
+          // Measure text to calculate bounds
+          const metrics = ctx.measureText(text.text);
+          const textWidth = metrics.width;
+          const textHeight = fontSize * 1.2; // Approximate height
+          
+          // Calculate bounds based on text alignment
+          let boundsX = textX;
+          if (text.textAlign === 'center') {
+            boundsX = textX - textWidth / 2;
+          } else if (text.textAlign === 'right') {
+            boundsX = textX - textWidth;
+          }
+          
+          // Store bounds in cache (in canvas pixel coordinates)
+          newTextBounds.set(text.id, {
+            x: boundsX,
+            y: textY,
+            width: textWidth,
+            height: textHeight,
+          });
+          
           // Apply text transformations
           ctx.translate(textX, textY);
           
@@ -521,9 +609,6 @@ export function InteractiveImageCanvas({
             ctx.rotate((text.rotation * Math.PI) / 180);
           }
           
-          // Set font properties
-          const fontSize = text.fontSize * overlayScale;
-          ctx.font = `${text.fontStyle} ${text.fontWeight} ${fontSize}px ${text.fontFamily}`;
           ctx.fillStyle = text.color;
           ctx.textAlign = text.textAlign;
           ctx.textBaseline = 'top';
@@ -533,6 +618,157 @@ export function InteractiveImageCanvas({
           
           ctx.restore();
         });
+        
+        // Update text bounds cache
+        setTextBoundsCache(newTextBounds);
+        
+        // Draw selection indicators for text overlays
+        // Draw hover indicator
+        if (hoveredTextId && hoveredTextId !== selectedTextId) {
+          const hoveredText = edits.textOverlays.find(t => t.id === hoveredTextId);
+          const hoveredBounds = newTextBounds.get(hoveredTextId);
+          
+          if (hoveredText && hoveredBounds) {
+            ctx.save();
+            
+            // Calculate center for rotation
+            const centerX = hoveredBounds.x + hoveredBounds.width / 2;
+            const centerY = hoveredBounds.y + hoveredBounds.height / 2;
+            
+            ctx.translate(centerX, centerY);
+            if (hoveredText.rotation) {
+              ctx.rotate((hoveredText.rotation * Math.PI) / 180);
+            }
+            
+            // Draw subtle hover outline
+            ctx.strokeStyle = '#60a5fa'; // Light blue
+            ctx.lineWidth = 2;
+            ctx.globalAlpha = 0.5;
+            ctx.setLineDash([]);
+            
+            const padding = 4;
+            ctx.strokeRect(
+              -hoveredBounds.width / 2 - padding,
+              -hoveredBounds.height / 2 - padding,
+              hoveredBounds.width + padding * 2,
+              hoveredBounds.height + padding * 2
+            );
+            
+            ctx.restore();
+          }
+        }
+        
+        // Draw selection indicator
+        if (selectedTextId) {
+          const selectedText = edits.textOverlays.find(t => t.id === selectedTextId);
+          const selectedBounds = newTextBounds.get(selectedTextId);
+          
+          if (selectedText && selectedBounds) {
+            ctx.save();
+            
+            // Calculate center for rotation
+            const centerX = selectedBounds.x + selectedBounds.width / 2;
+            const centerY = selectedBounds.y + selectedBounds.height / 2;
+            
+            ctx.translate(centerX, centerY);
+            if (selectedText.rotation) {
+              ctx.rotate((selectedText.rotation * Math.PI) / 180);
+            }
+            
+            // Draw dashed blue border
+            ctx.strokeStyle = '#3b82f6'; // Blue
+            ctx.lineWidth = 2;
+            ctx.globalAlpha = 1;
+            ctx.setLineDash([5, 5]);
+            
+            const padding = 4;
+            ctx.strokeRect(
+              -selectedBounds.width / 2 - padding,
+              -selectedBounds.height / 2 - padding,
+              selectedBounds.width + padding * 2,
+              selectedBounds.height + padding * 2
+            );
+            
+            // Draw resize handles
+            ctx.setLineDash([]); // Solid line for handles
+            ctx.fillStyle = '#ffffff';
+            ctx.strokeStyle = '#3b82f6';
+            ctx.lineWidth = 2;
+            
+            const handleSize = 10;
+            const boxWidth = selectedBounds.width + padding * 2;
+            const boxHeight = selectedBounds.height + padding * 2;
+            
+            // Define handle positions (relative to center)
+            const handles = [
+              // Corners
+              { x: -boxWidth / 2, y: -boxHeight / 2, type: 'tl' }, // Top-left
+              { x: boxWidth / 2, y: -boxHeight / 2, type: 'tr' },  // Top-right
+              { x: -boxWidth / 2, y: boxHeight / 2, type: 'bl' },  // Bottom-left
+              { x: boxWidth / 2, y: boxHeight / 2, type: 'br' },   // Bottom-right
+              // Edges
+              { x: 0, y: -boxHeight / 2, type: 't' },              // Top
+              { x: boxWidth / 2, y: 0, type: 'r' },                // Right
+              { x: 0, y: boxHeight / 2, type: 'b' },               // Bottom
+              { x: -boxWidth / 2, y: 0, type: 'l' },               // Left
+            ];
+            
+            handles.forEach(handle => {
+              ctx.fillRect(
+                handle.x - handleSize / 2,
+                handle.y - handleSize / 2,
+                handleSize,
+                handleSize
+              );
+              ctx.strokeRect(
+                handle.x - handleSize / 2,
+                handle.y - handleSize / 2,
+                handleSize,
+                handleSize
+              );
+            });
+            
+            // Draw rotation handle (circular handle above the text)
+            const rotationHandleDistance = 40; // Distance from top of bounding box
+            const rotationHandleRadius = 8;
+            const rotationHandleX = 0;
+            const rotationHandleY = -boxHeight / 2 - rotationHandleDistance;
+            
+            // Draw line connecting to rotation handle
+            ctx.beginPath();
+            ctx.moveTo(0, -boxHeight / 2);
+            ctx.lineTo(rotationHandleX, rotationHandleY);
+            ctx.strokeStyle = '#3b82f6';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // Draw rotation handle circle
+            ctx.beginPath();
+            ctx.arc(rotationHandleX, rotationHandleY, rotationHandleRadius, 0, Math.PI * 2);
+            ctx.fillStyle = '#ffffff';
+            ctx.fill();
+            ctx.strokeStyle = '#3b82f6';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // Draw rotation icon (curved arrow)
+            ctx.strokeStyle = '#3b82f6';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(rotationHandleX, rotationHandleY, 4, -Math.PI / 4, Math.PI * 5 / 4);
+            ctx.stroke();
+            // Arrow head
+            ctx.beginPath();
+            ctx.moveTo(rotationHandleX + 3, rotationHandleY + 2.5);
+            ctx.lineTo(rotationHandleX + 1.5, rotationHandleY + 4);
+            ctx.lineTo(rotationHandleX + 4, rotationHandleY + 4);
+            ctx.closePath();
+            ctx.fillStyle = '#3b82f6';
+            ctx.fill();
+            
+            ctx.restore();
+          }
+        }
       }
     }
 
@@ -821,6 +1057,127 @@ export function InteractiveImageCanvas({
     return null;
   };
 
+  // Get text resize handle at the given position
+  const getTextResizeHandle = (
+    canvas: HTMLCanvasElement,
+    mouseX: number,
+    mouseY: number,
+    textId: string
+  ): 'tl' | 'tr' | 'bl' | 'br' | 't' | 'r' | 'b' | 'l' | null => {
+    const text = edits.textOverlays.find(t => t.id === textId);
+    const bounds = textBoundsCache.get(textId);
+    
+    if (!text || !bounds) return null;
+    
+    // Calculate center for rotation
+    const centerX = bounds.x + bounds.width / 2;
+    const centerY = bounds.y + bounds.height / 2;
+    
+    // Transform mouse coordinates to text's local space (account for rotation)
+    const dx = mouseX - centerX;
+    const dy = mouseY - centerY;
+    
+    const rad = (-text.rotation * Math.PI) / 180;
+    const cos = Math.cos(rad);
+    const sin = Math.sin(rad);
+    
+    const localX = dx * cos - dy * sin;
+    const localY = dx * sin + dy * cos;
+    
+    const handleSize = 10;
+    const handleMargin = 5; // Extra margin for easier clicking
+    const effectiveHandleSize = handleSize + handleMargin * 2;
+    const padding = 4;
+    
+    const boxWidth = bounds.width + padding * 2;
+    const boxHeight = bounds.height + padding * 2;
+    
+    // Check corner handles first (higher priority)
+    // Top-left
+    if (Math.abs(localX - (-boxWidth / 2)) <= effectiveHandleSize / 2 &&
+        Math.abs(localY - (-boxHeight / 2)) <= effectiveHandleSize / 2) {
+      return 'tl';
+    }
+    // Top-right
+    if (Math.abs(localX - (boxWidth / 2)) <= effectiveHandleSize / 2 &&
+        Math.abs(localY - (-boxHeight / 2)) <= effectiveHandleSize / 2) {
+      return 'tr';
+    }
+    // Bottom-left
+    if (Math.abs(localX - (-boxWidth / 2)) <= effectiveHandleSize / 2 &&
+        Math.abs(localY - (boxHeight / 2)) <= effectiveHandleSize / 2) {
+      return 'bl';
+    }
+    // Bottom-right
+    if (Math.abs(localX - (boxWidth / 2)) <= effectiveHandleSize / 2 &&
+        Math.abs(localY - (boxHeight / 2)) <= effectiveHandleSize / 2) {
+      return 'br';
+    }
+    
+    // Check edge handles
+    // Top
+    if (Math.abs(localX) <= effectiveHandleSize / 2 &&
+        Math.abs(localY - (-boxHeight / 2)) <= effectiveHandleSize / 2) {
+      return 't';
+    }
+    // Right
+    if (Math.abs(localX - (boxWidth / 2)) <= effectiveHandleSize / 2 &&
+        Math.abs(localY) <= effectiveHandleSize / 2) {
+      return 'r';
+    }
+    // Bottom
+    if (Math.abs(localX) <= effectiveHandleSize / 2 &&
+        Math.abs(localY - (boxHeight / 2)) <= effectiveHandleSize / 2) {
+      return 'b';
+    }
+    // Left
+    if (Math.abs(localX - (-boxWidth / 2)) <= effectiveHandleSize / 2 &&
+        Math.abs(localY) <= effectiveHandleSize / 2) {
+      return 'l';
+    }
+    
+    return null;
+  };
+
+  const isOverRotationHandle = (
+    canvas: HTMLCanvasElement,
+    mouseX: number,
+    mouseY: number,
+    textId: string
+  ): boolean => {
+    const text = edits.textOverlays.find(t => t.id === textId);
+    const bounds = textBoundsCache.get(textId);
+    
+    if (!text || !bounds) return false;
+    
+    // Calculate center for rotation
+    const centerX = bounds.x + bounds.width / 2;
+    const centerY = bounds.y + bounds.height / 2;
+    
+    // Transform mouse coordinates to text's local space (account for rotation)
+    const dx = mouseX - centerX;
+    const dy = mouseY - centerY;
+    
+    const rad = (-text.rotation * Math.PI) / 180;
+    const cos = Math.cos(rad);
+    const sin = Math.sin(rad);
+    
+    const localX = dx * cos - dy * sin;
+    const localY = dx * sin + dy * cos;
+    
+    const padding = 4;
+    const boxHeight = bounds.height + padding * 2;
+    const rotationHandleDistance = 40;
+    const rotationHandleRadius = 8;
+    const handleMargin = 5;
+    
+    const rotationHandleY = -boxHeight / 2 - rotationHandleDistance;
+    
+    // Check if mouse is within rotation handle circle
+    const distance = Math.sqrt(localX * localX + (localY - rotationHandleY) * (localY - rotationHandleY));
+    return distance <= rotationHandleRadius + handleMargin;
+  };
+
   const handleCanvasMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -848,8 +1205,57 @@ export function InteractiveImageCanvas({
       } else {
         canvas.style.cursor = 'crosshair';
       }
-    } else if (editMode === 'none' && !isTransforming) {
-      // Free transform mode
+    } else if (editMode === 'none' && !isTransforming && !isDraggingText && !isResizingText && !isRotatingText) {
+      // Check for rotation handle on selected text first
+      if (selectedTextId && isOverRotationHandle(canvas, mouseX, mouseY, selectedTextId)) {
+        canvas.style.cursor = 'grab';
+        return;
+      }
+      
+      // Check for resize handle on selected text
+      let resizeHandleType: 'tl' | 'tr' | 'bl' | 'br' | 't' | 'r' | 'b' | 'l' | null = null;
+      if (selectedTextId) {
+        resizeHandleType = getTextResizeHandle(canvas, mouseX, mouseY, selectedTextId);
+      }
+      
+      if (resizeHandleType) {
+        // Set cursor based on resize handle
+        if (resizeHandleType === 'tl' || resizeHandleType === 'br') {
+          canvas.style.cursor = 'nwse-resize';
+        } else if (resizeHandleType === 'tr' || resizeHandleType === 'bl') {
+          canvas.style.cursor = 'nesw-resize';
+        } else if (resizeHandleType === 't' || resizeHandleType === 'b') {
+          canvas.style.cursor = 'ns-resize';
+        } else if (resizeHandleType === 'l' || resizeHandleType === 'r') {
+          canvas.style.cursor = 'ew-resize';
+        }
+        return;
+      }
+      
+      // Check for text overlay hit detection
+      let foundTextId: string | null = null;
+      
+      if (edits.textOverlays && edits.textOverlays.length > 0) {
+        // Iterate in reverse order to prioritize top-most texts
+        for (let i = edits.textOverlays.length - 1; i >= 0; i--) {
+          const text = edits.textOverlays[i];
+          const bounds = textBoundsCache.get(text.id);
+          
+          if (bounds) {
+            // Check if point is inside the rotated text rectangle
+            const point = { x: mouseX, y: mouseY };
+            
+            if (isPointInRotatedRect(point, bounds, text.rotation)) {
+              foundTextId = text.id;
+              break;
+            }
+          }
+        }
+      }
+      
+      setHoveredTextId(foundTextId);
+      
+      // Free transform mode or text hover
       const handle = getTransformHandleAt(canvas, mouseX, mouseY);
       if (handle === 'tl' || handle === 'br') {
         canvas.style.cursor = 'nwse-resize'; // Top-left or bottom-right
@@ -857,6 +1263,8 @@ export function InteractiveImageCanvas({
         canvas.style.cursor = 'nesw-resize'; // Top-right or bottom-left
       } else if (handle === 'move') {
         canvas.style.cursor = 'move';
+      } else if (foundTextId) {
+        canvas.style.cursor = 'move'; // Show move cursor when hovering over text
       } else {
         canvas.style.cursor = 'default';
       }
@@ -889,17 +1297,118 @@ export function InteractiveImageCanvas({
         setCropArea({ x, y, width: 0, height: 0 });
       }
     } else if (editMode === 'none') {
-      // Free transform mode
-      const handle = getTransformHandleAt(canvas, mouseX, mouseY);
-      if (!handle) return;
+      // Check for rotation handle on selected text first
+      if (selectedTextId && isOverRotationHandle(canvas, mouseX, mouseY, selectedTextId)) {
+        // Start rotating the text
+        setIsRotatingText(true);
+        canvas.style.cursor = 'grabbing';
+        
+        const text = edits.textOverlays.find(t => t.id === selectedTextId);
+        if (text) {
+          // Store initial state for rotation calculations
+          const initialState = {
+            fontSize: text.fontSize,
+            x: text.x,
+            y: text.y,
+            width: 0,
+            height: 0,
+            rotation: text.rotation,
+          };
+          setInitialTextState(initialState);
+          initialTextStateRef.current = initialState;
+          
+          // Store initial mouse position
+          setDragStart({ x: mouseX, y: mouseY });
+          dragStartRef.current = { x: mouseX, y: mouseY };
+        }
+        return;
+      }
+      
+      // Check for resize handle on selected text
+      let resizeHandleType: 'tl' | 'tr' | 'bl' | 'br' | 't' | 'r' | 'b' | 'l' | null = null;
+      if (selectedTextId) {
+        resizeHandleType = getTextResizeHandle(canvas, mouseX, mouseY, selectedTextId);
+      }
+      
+      if (resizeHandleType) {
+        // Start resizing the text
+        setIsResizingText(true);
+        setResizeHandle(resizeHandleType);
+        resizeHandleRef.current = resizeHandleType;
+        
+        const text = edits.textOverlays.find(t => t.id === selectedTextId);
+        const bounds = textBoundsCache.get(selectedTextId!);
+        
+        if (text && bounds) {
+          // Store initial state for resize calculations
+          const initialState = {
+            fontSize: text.fontSize,
+            x: text.x,
+            y: text.y,
+            width: bounds.width,
+            height: bounds.height,
+          };
+          setInitialTextState(initialState);
+          initialTextStateRef.current = initialState;
+          
+          // Store initial mouse position
+          setDragStart({ x: mouseX, y: mouseY });
+          dragStartRef.current = { x: mouseX, y: mouseY };
+        }
+      } else {
+        // Check for text click
+        let clickedTextId: string | null = null;
+        
+        if (edits.textOverlays && edits.textOverlays.length > 0) {
+          // Iterate in reverse order to prioritize top-most texts
+          for (let i = edits.textOverlays.length - 1; i >= 0; i--) {
+            const text = edits.textOverlays[i];
+            const bounds = textBoundsCache.get(text.id);
+            
+            if (bounds) {
+              const point = { x: mouseX, y: mouseY };
+              
+              if (isPointInRotatedRect(point, bounds, text.rotation)) {
+                clickedTextId = text.id;
+                break;
+              }
+            }
+          }
+        }
+        
+        if (clickedTextId) {
+          // Start dragging the text
+          handleTextSelect(clickedTextId);
+          setIsDraggingText(true);
+          selectedTextIdRef.current = clickedTextId;
+          
+          // Calculate drag offset (mouse position relative to text position)
+          const text = edits.textOverlays.find(t => t.id === clickedTextId);
+          if (text) {
+            const bounds = textBoundsCache.get(clickedTextId);
+            if (bounds) {
+              const offset = {
+                x: mouseX - bounds.x,
+                y: mouseY - bounds.y,
+              };
+              setTextDragOffset(offset);
+              textDragOffsetRef.current = offset;
+            }
+          }
+        } else {
+          // Free transform mode
+          const handle = getTransformHandleAt(canvas, mouseX, mouseY);
+          if (!handle) return;
 
-      setIsTransforming(true);
-      setTransformType(handle);
-      transformTypeRef.current = handle;
-      setDragStart({ x: mouseX, y: mouseY });
-      dragStartRef.current = { x: mouseX, y: mouseY };
-      initialScaleRef.current = imageTransform.scale;
-      initialTransformRef.current = { ...imageTransform };
+          setIsTransforming(true);
+          setTransformType(handle);
+          transformTypeRef.current = handle;
+          setDragStart({ x: mouseX, y: mouseY });
+          dragStartRef.current = { x: mouseX, y: mouseY };
+          initialScaleRef.current = imageTransform.scale;
+          initialTransformRef.current = { ...imageTransform };
+        }
+      }
     }
 
     if (editMode !== 'crop' && editMode !== 'none') return;
@@ -1020,6 +1529,218 @@ export function InteractiveImageCanvas({
 
           return { x: prevX, y: prevY, width: prevW, height: prevH };
         });
+      } else if (isDraggingText && selectedTextIdRef.current) {
+        // Text dragging
+        const text = edits.textOverlays.find(t => t.id === selectedTextIdRef.current);
+        if (text) {
+          const bounds = textBoundsCache.get(selectedTextIdRef.current);
+          if (bounds) {
+            // Calculate new position
+            const newCanvasX = mouseX - textDragOffsetRef.current.x;
+            const newCanvasY = mouseY - textDragOffsetRef.current.y;
+            
+            // Convert from canvas pixels to image pixels
+            // We need to account for the overlay scale
+            const img = imgRef.current;
+            if (!img) return;
+            
+            // Calculate overlay scale (same as in drawCanvas)
+            const aspectRatio = img.width / img.height;
+            let baseWidth = canvas.width * 0.8;
+            let baseHeight = canvas.height * 0.8;
+            
+            if (baseWidth / baseHeight > aspectRatio) {
+              baseWidth = baseHeight * aspectRatio;
+            } else {
+              baseHeight = baseWidth / aspectRatio;
+            }
+            
+            const finalWidth = baseWidth * imageTransform.scale;
+            const finalHeight = baseHeight * imageTransform.scale;
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const imgX = centerX + (imageTransform.x * canvas.width / 100) - finalWidth / 2;
+            const imgY = centerY + (imageTransform.y * canvas.height / 100) - finalHeight / 2;
+            
+            // Determine source dimensions for overlay scale
+            let sourceWidth = img.width;
+            let sourceHeight = img.height;
+            if (edits.crop) {
+              sourceWidth = edits.crop.width;
+              sourceHeight = edits.crop.height;
+            }
+            if (edits.resize) {
+              sourceWidth = edits.resize.width;
+              sourceHeight = edits.resize.height;
+            }
+            
+            const overlayScale = finalWidth / sourceWidth;
+            
+            // Convert back to image pixel coordinates
+            const newImageX = (newCanvasX - imgX) / overlayScale;
+            const newImageY = (newCanvasY - imgY) / overlayScale;
+            
+            // Update text position (no history update during drag)
+            const updatedTexts = edits.textOverlays.map(t =>
+              t.id === selectedTextIdRef.current ? { ...t, x: newImageX, y: newImageY } : t
+            );
+            
+            // Use onEditChange for real-time updates without history
+            if (onEditChange) {
+              onEditChange({ textOverlays: updatedTexts });
+            }
+          }
+        }
+      } else if (isResizingText && selectedTextIdRef.current && resizeHandleRef.current) {
+        // Text resizing
+        const text = edits.textOverlays.find(t => t.id === selectedTextIdRef.current);
+        if (text && initialTextStateRef.current) {
+          const canvas = canvasRef.current;
+          if (!canvas) return;
+          
+          const img = imgRef.current;
+          if (!img) return;
+          
+          // Calculate overlay scale (same as in text dragging)
+          const aspectRatio = img.width / img.height;
+          let baseWidth = canvas.width * 0.8;
+          let baseHeight = canvas.height * 0.8;
+          
+          if (baseWidth / baseHeight > aspectRatio) {
+            baseWidth = baseHeight * aspectRatio;
+          } else {
+            baseHeight = baseWidth / aspectRatio;
+          }
+          
+          const finalWidth = baseWidth * imageTransform.scale;
+          const finalHeight = baseHeight * imageTransform.scale;
+          
+          let sourceWidth = img.width;
+          let sourceHeight = img.height;
+          if (edits.crop) {
+            sourceWidth = edits.crop.width;
+            sourceHeight = edits.crop.height;
+          }
+          if (edits.resize) {
+            sourceWidth = edits.resize.width;
+            sourceHeight = edits.resize.height;
+          }
+          
+          const overlayScale = finalWidth / sourceWidth;
+          
+          // Get mouse delta in canvas pixels
+          const deltaX = mouseX - dragStartRef.current.x;
+          const deltaY = mouseY - dragStartRef.current.y;
+          
+          // Calculate the diagonal distance change for uniform scaling
+          const deltaMagnitude = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+          
+          // Determine sign based on handle direction
+          const handle = resizeHandleRef.current;
+          let sign = 1;
+          
+          // For corner handles, consider both X and Y
+          if (handle.includes('t')) sign *= (deltaY < 0 ? 1 : -1);
+          if (handle.includes('b')) sign *= (deltaY > 0 ? 1 : -1);
+          if (handle.includes('l')) sign *= (deltaX < 0 ? 1 : -1);
+          if (handle.includes('r')) sign *= (deltaX > 0 ? 1 : -1);
+          
+          const scaleDelta = sign * deltaMagnitude;
+          
+          // Scale factor - convert canvas pixels to a reasonable scale change
+          // A movement of 100 pixels = 2x scale change
+          const scaleFactor = 1 + (scaleDelta / (100 * overlayScale));
+          
+          // Apply minimum scale of 0.1x
+          const clampedScale = Math.max(0.1, scaleFactor);
+          
+          const newFontSize = initialTextStateRef.current.fontSize * clampedScale;
+          
+          // Calculate new dimensions if original had them
+          let newWidth = initialTextStateRef.current.width 
+            ? initialTextStateRef.current.width * clampedScale 
+            : undefined;
+          let newHeight = initialTextStateRef.current.height 
+            ? initialTextStateRef.current.height * clampedScale 
+            : undefined;
+          
+          // Adjust position to keep the opposite corner fixed
+          let newX = text.x;
+          let newY = text.y;
+          
+          // Get the anchor point based on handle
+          const anchorX = handle.includes('r') ? -1 : handle.includes('l') ? 1 : 0;
+          const anchorY = handle.includes('b') ? -1 : handle.includes('t') ? 1 : 0;
+          
+          if (anchorX !== 0 || anchorY !== 0) {
+            // Calculate the offset in image pixels
+            const initialWidth = initialTextStateRef.current.width || 0;
+            const initialHeight = initialTextStateRef.current.height || 0;
+            
+            const widthDiff = (newWidth || 0) - initialWidth;
+            const heightDiff = (newHeight || 0) - initialHeight;
+            
+            // Apply offset based on anchor (negative because we want to move opposite)
+            newX = initialTextStateRef.current.x - (widthDiff * anchorX * 0.5);
+            newY = initialTextStateRef.current.y - (heightDiff * anchorY * 0.5);
+          }
+          
+          // Update text with new dimensions
+          const updatedTexts = edits.textOverlays.map(t =>
+            t.id === selectedTextIdRef.current ? { 
+              ...t, 
+              fontSize: newFontSize,
+              width: newWidth,
+              height: newHeight,
+              x: newX,
+              y: newY
+            } : t
+          );
+          
+          // Use onEditChange for real-time updates without history
+          if (onEditChange) {
+            onEditChange({ textOverlays: updatedTexts });
+          }
+        }
+      } else if (isRotatingText && selectedTextIdRef.current && initialTextStateRef.current) {
+        // Text rotation
+        const text = edits.textOverlays.find(t => t.id === selectedTextIdRef.current);
+        if (text) {
+          const bounds = textBoundsCache.get(selectedTextIdRef.current);
+          if (bounds) {
+            // Calculate text center in canvas coordinates
+            const centerX = bounds.x + bounds.width / 2;
+            const centerY = bounds.y + bounds.height / 2;
+            
+            // Calculate angle from center to current mouse position
+            const dx = mouseX - centerX;
+            const dy = mouseY - centerY;
+            const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+            
+            // Calculate angle from center to initial mouse position
+            const initialDx = dragStartRef.current.x - centerX;
+            const initialDy = dragStartRef.current.y - centerY;
+            const initialAngle = Math.atan2(initialDy, initialDx) * (180 / Math.PI);
+            
+            // Calculate rotation delta and add to initial rotation
+            const rotationDelta = angle - initialAngle;
+            let newRotation = (initialTextStateRef.current.rotation || 0) + rotationDelta;
+            
+            // Normalize rotation to -180 to 180 range
+            while (newRotation > 180) newRotation -= 360;
+            while (newRotation < -180) newRotation += 360;
+            
+            // Update text rotation
+            const updatedTexts = edits.textOverlays.map(t =>
+              t.id === selectedTextIdRef.current ? { ...t, rotation: newRotation } : t
+            );
+            
+            // Use onEditChange for real-time updates without history
+            if (onEditChange) {
+              onEditChange({ textOverlays: updatedTexts });
+            }
+          }
+        }
       } else if (editMode === 'none' && transformTypeRef.current) {
         // Free transform
         const deltaX = mouseX - dragStartRef.current.x;
@@ -1093,12 +1814,36 @@ export function InteractiveImageCanvas({
     };
 
     const handleWindowMouseUp = () => {
+      // Commit text position if we were dragging text
+      if (isDraggingText && onEditCommit) {
+        // Text position was already updated via onEditChange, just commit it to history
+        onEditCommit({});
+      }
+      
+      // Commit text resize if we were resizing text
+      if (isResizingText && onEditCommit) {
+        // Text size/position was already updated via onEditChange, just commit it to history
+        onEditCommit({});
+      }
+      
+      // Commit text rotation if we were rotating text
+      if (isRotatingText && onEditCommit) {
+        // Text rotation was already updated via onEditChange, just commit it to history
+        onEditCommit({});
+      }
+      
       setIsDragging(false);
       setIsTransforming(false);
+      setIsDraggingText(false);
+      setIsResizingText(false);
+      setIsRotatingText(false);
+      setResizeHandle(null);
       setDraggedPart(null);
       setTransformType(null);
       draggedPartRef.current = null;
       transformTypeRef.current = null;
+      resizeHandleRef.current = null;
+      initialTextStateRef.current = null;
       window.removeEventListener('mousemove', handleWindowMouseMove);
       window.removeEventListener('mouseup', handleWindowMouseUp);
     };

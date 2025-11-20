@@ -22,6 +22,8 @@ export interface TextOverlay {
     textAlign: 'left' | 'center' | 'right';
     rotation: number;
     opacity: number;
+    width?: number; // Calculated text bounding box width (in image pixels)
+    height?: number; // Calculated text bounding box height (in image pixels)
 }
 
 export interface Shape {

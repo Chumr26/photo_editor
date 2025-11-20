@@ -99,6 +99,7 @@ export function EditorScreen({
     const [showAIPanel, setShowAIPanel] = useState(false);
     const [tempEdits, setTempEdits] = useState<EditValues | null>(null);
     const [canvasZoom, setCanvasZoom] = useState(100);
+    const [selectedTextId, setSelectedTextId] = useState<string | null>(null);
     const [aiSettings, setAISettings] = useState<AISettings>(() => {
         // Load from localStorage
         const saved = localStorage.getItem('aiSettings');
@@ -423,6 +424,10 @@ export function EditorScreen({
                         onCropCancel={handleCropCancel}
                         onZoomChange={setCanvasZoom}
                         onResetView={() => {}}
+                        selectedTextId={selectedTextId}
+                        onTextSelect={setSelectedTextId}
+                        onEditChange={handleOverlayChange}
+                        onEditCommit={handleOverlayCommit}
                     />
                 </div>
 
@@ -475,6 +480,8 @@ export function EditorScreen({
                                         edits={displayEdits}
                                         onEditChange={handleOverlayChange}
                                         onEditCommit={handleOverlayCommit}
+                                        selectedTextId={selectedTextId}
+                                        onTextSelect={setSelectedTextId}
                                     />
                                     <ShapesTool
                                         edits={displayEdits}

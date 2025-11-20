@@ -6,3 +6,4 @@
 
 export * from './canvas.utils';
 export * from './crop.utils';
+export * from './text.utils';
