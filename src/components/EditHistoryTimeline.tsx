@@ -241,16 +241,6 @@ export function EditHistoryTimeline({
             })}
           </div>
         </ScrollArea>
-{/* 
-        <div className="flex items-center justify-between pt-4 border-t">
-          <div className="text-sm text-slate-600">
-            💡 Mẹo: Dùng <kbd className="px-1.5 py-0.5 text-xs bg-slate-100 rounded border">Ctrl+Z</kbd> để hoàn tác
-          </div>
-          <Button variant="outline" onClick={onClose}>
-            <X className="w-4 h-4 mr-2" />
-            Đóng
-          </Button>
-        </div> */}
       </DialogContent>
     </Dialog>
   );
