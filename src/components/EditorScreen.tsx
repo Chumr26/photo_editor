@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { ImageState, EditValues } from '../App';
 import { EditorControls } from './EditorControls';
 import { InteractiveImageCanvas } from './InteractiveImageCanvas';
 import { ExportModal } from './ExportModal';
 import { AIChatPanel } from './AIChatPanel';
 import { AISettingsModal, AISettings } from './AISettingsModal';
-import HistoryPanel from './HistoryPanel';
+import { EditHistoryTimeline } from './EditHistoryTimeline';
+import { useEditHistory } from '../hooks/useEditHistory';
 import { Button } from './ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import {
@@ -16,34 +17,52 @@ import {
     X,
     Sparkles,
     Sliders,
+    History,
 } from 'lucide-react';
 
 interface EditorScreenProps {
     imageState: ImageState;
     setImageState: (state: ImageState) => void;
-    editHistory: EditValues[];
-    setEditHistory: (history: EditValues[]) => void;
-    historyIndex: number;
-    setHistoryIndex: (index: number) => void;
     onReset: () => void;
 }
 
 export function EditorScreen({
     imageState,
     setImageState,
-    editHistory,
-    setEditHistory,
-    historyIndex,
-    setHistoryIndex,
     onReset,
 }: EditorScreenProps) {
-    const [currentEdits, setCurrentEdits] = useState<EditValues>(
-        editHistory[historyIndex]
-    );
+    // Initialize edit history hook
+    const initialEdits: EditValues = {
+        blur: 0,
+        grayscale: false,
+        brightness: 100,
+        contrast: 100,
+        flipH: false,
+        flipV: false,
+        rotation: 0,
+        crop: null,
+        frame: null,
+        resize: null,
+    };
+
+    const {
+        history,
+        currentIndex,
+        currentEdits,
+        canUndo,
+        canRedo,
+        updateCurrent,
+        undo,
+        redo,
+        reset,
+        jumpToIndex,
+    } = useEditHistory(initialEdits);
+
     const [editMode, setEditMode] = useState<
         'none' | 'crop' | 'rotate' | 'resize'
     >('none');
     const [showExportModal, setShowExportModal] = useState(false);
+    const [showHistoryTimeline, setShowHistoryTimeline] = useState(false);
     const [processedImage, setProcessedImage] = useState<string>('');
     const [showAISettings, setShowAISettings] = useState(false);
     const [showAIPanel, setShowAIPanel] = useState(false);
@@ -59,94 +78,17 @@ export function EditorScreen({
                   endpoint: '',
               };
     });
-    const [history, setHistory] = useState<{ id: number; action: string }[]>([]);
-    const [fullHistory, setFullHistory] = useState<{ id: number; action: string }[]>([]);
-    const [showFullHistory, setShowFullHistory] = useState(false);
-
-    useEffect(() => {
-        setCurrentEdits(editHistory[historyIndex]);
-    }, [historyIndex, editHistory]);
-
-    const updateEdit = (key: keyof EditValues, value: any) => {
-        const newEdits = { ...currentEdits, [key]: value };
-        setCurrentEdits(newEdits);
-    };
-
-    const commitEdit = (key: keyof EditValues, value: any) => {
-        const newEdits = { ...currentEdits, [key]: value };
-        
-        const newEditHistory = editHistory.slice(0, historyIndex + 1);
-        newEditHistory.push(newEdits);
-        setEditHistory(newEditHistory);
-        setHistoryIndex(newEditHistory.length - 1);
-        
-        addHistoryAction(key.charAt(0).toUpperCase() + key.slice(1));
-    }
-    
-    const addHistoryAction = (action: string) => {
-        const newFullHistory = [...fullHistory, { id: Date.now(), action }];
-        setFullHistory(newFullHistory);
-        
-        if (showFullHistory) {
-            setHistory(newFullHistory);
-        } else {
-            setHistory(newFullHistory.slice(-12));
-        }
-    };
-    
-    const deleteHistoryAction = (id: number) => {
-        const newFullHistory = fullHistory.filter(item => item.id !== id);
-        setFullHistory(newFullHistory);
-
-        if (showFullHistory) {
-            setHistory(newFullHistory);
-        } else {
-            setHistory(newFullHistory.slice(-12));
-        }
-    };
-
-    const toggleShowFullHistory = () => {
-        const newShowFullHistory = !showFullHistory;
-        setShowFullHistory(newShowFullHistory);
-
-        if (newShowFullHistory) {
-            setHistory(fullHistory);
-        } else {
-            setHistory(fullHistory.slice(-12));
-        }
-    };
 
     const handleUndo = () => {
-        if (historyIndex > 0) {
-            setHistoryIndex(historyIndex - 1);
-        }
+        undo();
     };
 
     const handleRedo = () => {
-        if (historyIndex < editHistory.length - 1) {
-            setHistoryIndex(historyIndex + 1);
-        }
+        redo();
     };
 
     const handleResetEdits = () => {
-        const initialEdit: EditValues = {
-            blur: 0,
-            grayscale: false,
-            brightness: 100,
-            contrast: 100,
-            flipH: false,
-            flipV: false,
-            rotation: 0,
-            crop: null,
-            frame: null,
-            resize: null,
-        };
-        setCurrentEdits(initialEdit);
-        setEditHistory([initialEdit]);
-        setHistoryIndex(0);
-        setHistory([]);
-        setFullHistory([]);
-        setShowFullHistory(false);
+        reset(initialEdits);
     };
 
     const handleCropChange = (crop: {
@@ -155,20 +97,21 @@ export function EditorScreen({
         width: number;
         height: number;
     }) => {
-        updateEdit('crop', crop);
+        // Temporary update without committing to history
+        updateCurrent('crop', crop);
     };
-    
+
     const handleCropEnd = (crop: {
         x: number;
         y: number;
         width: number;
         height: number;
     }) => {
-        commitEdit('crop', crop);
-    }
+        updateCurrent('crop', crop);
+    };
 
     const handleRotationChange = (rotation: number) => {
-        updateEdit('rotation', rotation);
+        updateCurrent('rotation', rotation);
     };
 
     const handleAISaveSettings = (settings: AISettings) => {
@@ -232,7 +175,7 @@ export function EditorScreen({
                             variant="outline"
                             size="sm"
                             onClick={handleUndo}
-                            disabled={historyIndex === 0}
+                            disabled={!canUndo}
                             className="hidden sm:flex"
                         >
                             <Undo2 className="w-4 h-4 mr-2" />
@@ -242,7 +185,7 @@ export function EditorScreen({
                             variant="outline"
                             size="icon"
                             onClick={handleUndo}
-                            disabled={historyIndex === 0}
+                            disabled={!canUndo}
                             className="sm:hidden shrink-0"
                         >
                             <Undo2 className="w-4 h-4" />
@@ -252,7 +195,7 @@ export function EditorScreen({
                             variant="outline"
                             size="sm"
                             onClick={handleRedo}
-                            disabled={historyIndex === editHistory.length - 1}
+                            disabled={!canRedo}
                             className="hidden sm:flex"
                         >
                             <Redo2 className="w-4 h-4 mr-2" />
@@ -262,10 +205,28 @@ export function EditorScreen({
                             variant="outline"
                             size="icon"
                             onClick={handleRedo}
-                            disabled={historyIndex === editHistory.length - 1}
+                            disabled={!canRedo}
                             className="sm:hidden shrink-0"
                         >
                             <Redo2 className="w-4 h-4" />
+                        </Button>
+
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShowHistoryTimeline(true)}
+                            className="hidden md:flex"
+                        >
+                            <History className="w-4 h-4 mr-2" />
+                            Lịch sử ({currentIndex + 1}/{history.length})
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => setShowHistoryTimeline(true)}
+                            className="md:hidden shrink-0"
+                        >
+                            <History className="w-4 h-4" />
                         </Button>
 
                         <Button
@@ -309,17 +270,9 @@ export function EditorScreen({
                         editMode={editMode}
                         onCropChange={handleCropChange}
                         onRotationChange={handleRotationChange}
-                        onEditEnd={() => handleCropEnd(currentEdits.crop)}
+                        onEditEnd={() => currentEdits.crop && handleCropEnd(currentEdits.crop)}
                     />
                 </div>
-
-                <HistoryPanel
-                    history={history}
-                    onDeleteHistory={deleteHistoryAction}
-                    toggleShowFullHistory={toggleShowFullHistory}
-                    showFullHistory={showFullHistory}
-                    fullHistoryCount={fullHistory.length}
-                />
 
                 {/* Controls Sidebar */}
                 <div className="w-full lg:w-96 bg-white border-t lg:border-t-0 lg:border-l border-slate-200 overflow-hidden flex flex-col">
@@ -348,8 +301,8 @@ export function EditorScreen({
                         >
                             <EditorControls
                                 edits={currentEdits}
-                                onEditChange={updateEdit}
-                                onEditCommit={commitEdit}
+                                onEditChange={(key, value) => updateCurrent(key, value)}
+                                onEditCommit={(key, value) => updateCurrent(key, value)}
                                 editMode={editMode}
                                 onEditModeChange={setEditMode}
                             />
@@ -382,6 +335,15 @@ export function EditorScreen({
                     currentSettings={aiSettings}
                     onSave={handleAISaveSettings}
                     onClose={() => setShowAISettings(false)}
+                />
+            )}
+
+            {showHistoryTimeline && (
+                <EditHistoryTimeline
+                    editHistory={history}
+                    currentIndex={currentIndex}
+                    onJumpToIndex={jumpToIndex}
+                    onClose={() => setShowHistoryTimeline(false)}
                 />
             )}
         </div>

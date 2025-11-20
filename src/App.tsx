@@ -31,8 +31,6 @@ export interface EditValues {
 
 export default function App() {
     const [imageState, setImageState] = useState<ImageState | null>(null);
-    const [editHistory, setEditHistory] = useState<EditValues[]>([]);
-    const [historyIndex, setHistoryIndex] = useState(-1);
 
     const handleImageUpload = (file: File) => {
         const reader = new FileReader();
@@ -46,22 +44,6 @@ export default function App() {
                     height: img.height,
                 };
                 setImageState(imageData);
-
-                // Initialize edit history
-                const initialEdit: EditValues = {
-                    blur: 0,
-                    grayscale: false,
-                    brightness: 100,
-                    contrast: 100,
-                    flipH: false,
-                    flipV: false,
-                    rotation: 0,
-                    crop: null,
-                    frame: null,
-                    resize: null,
-                };
-                setEditHistory([initialEdit]);
-                setHistoryIndex(0);
             };
             img.src = e.target?.result as string;
         };
@@ -70,8 +52,6 @@ export default function App() {
 
     const handleReset = () => {
         setImageState(null);
-        setEditHistory([]);
-        setHistoryIndex(-1);
     };
 
     return (
@@ -82,10 +62,6 @@ export default function App() {
                 <EditorScreen
                     imageState={imageState}
                     setImageState={setImageState}
-                    editHistory={editHistory}
-                    setEditHistory={setEditHistory}
-                    historyIndex={historyIndex}
-                    setHistoryIndex={setHistoryIndex}
                     onReset={handleReset}
                 />
             )}

@@ -6,61 +6,78 @@
  */
 
 import { useState, useCallback } from 'react';
-import { EditValues } from '../types/editor.types';
+import { EditValues } from '../App';
 
-export function useEditHistory(initialEdit: EditValues) {
-  const [editHistory, setEditHistory] = useState<EditValues[]>([initialEdit]);
-  const [historyIndex, setHistoryIndex] = useState(0);
-  const [currentEdits, setCurrentEdits] = useState<EditValues>(initialEdit);
+export interface UseEditHistoryReturn {
+  history: EditValues[];
+  currentIndex: number;
+  currentEdits: EditValues;
+  canUndo: boolean;
+  canRedo: boolean;
+  addToHistory: (edits: EditValues) => void;
+  updateCurrent: <K extends keyof EditValues>(key: K, value: EditValues[K]) => void;
+  undo: () => void;
+  redo: () => void;
+  reset: (initialEdits: EditValues) => void;
+  jumpToIndex: (index: number) => void;
+}
 
-  const updateEdit = useCallback(
-    (key: keyof EditValues, value: any) => {
-      const newEdits = { ...currentEdits, [key]: value };
-      const newHistory = editHistory.slice(0, historyIndex + 1);
-      newHistory.push(newEdits);
+export function useEditHistory(initialEdits: EditValues): UseEditHistoryReturn {
+  const [history, setHistory] = useState<EditValues[]>([initialEdits]);
+  const [currentIndex, setCurrentIndex] = useState(0);
 
-      setEditHistory(newHistory);
-      setHistoryIndex(newHistory.length - 1);
-      setCurrentEdits(newEdits);
-    },
-    [currentEdits, editHistory, historyIndex]
-  );
+  const currentEdits = history[currentIndex];
+  const canUndo = currentIndex > 0;
+  const canRedo = currentIndex < history.length - 1;
+
+  const addToHistory = useCallback((edits: EditValues) => {
+    setHistory(prev => {
+      const newHistory = prev.slice(0, currentIndex + 1);
+      newHistory.push(edits);
+      return newHistory;
+    });
+    setCurrentIndex(prev => prev + 1);
+  }, [currentIndex]);
+
+  const updateCurrent = useCallback(<K extends keyof EditValues>(key: K, value: EditValues[K]) => {
+    const newEdits = { ...currentEdits, [key]: value };
+    addToHistory(newEdits);
+  }, [currentEdits, addToHistory]);
 
   const undo = useCallback(() => {
-    if (historyIndex > 0) {
-      const newIndex = historyIndex - 1;
-      setHistoryIndex(newIndex);
-      setCurrentEdits(editHistory[newIndex]);
+    if (canUndo) {
+      setCurrentIndex(prev => prev - 1);
     }
-  }, [historyIndex, editHistory]);
+  }, [canUndo]);
 
   const redo = useCallback(() => {
-    if (historyIndex < editHistory.length - 1) {
-      const newIndex = historyIndex + 1;
-      setHistoryIndex(newIndex);
-      setCurrentEdits(editHistory[newIndex]);
+    if (canRedo) {
+      setCurrentIndex(prev => prev + 1);
     }
-  }, [historyIndex, editHistory]);
+  }, [canRedo]);
 
-  const resetHistory = useCallback((newEdit: EditValues) => {
-    setEditHistory([newEdit]);
-    setHistoryIndex(0);
-    setCurrentEdits(newEdit);
+  const reset = useCallback((initialEdits: EditValues) => {
+    setHistory([initialEdits]);
+    setCurrentIndex(0);
   }, []);
 
-  const canUndo = historyIndex > 0;
-  const canRedo = historyIndex < editHistory.length - 1;
+  const jumpToIndex = useCallback((index: number) => {
+    if (index >= 0 && index < history.length) {
+      setCurrentIndex(index);
+    }
+  }, [history.length]);
 
   return {
+    history,
+    currentIndex,
     currentEdits,
-    setCurrentEdits,
-    editHistory,
-    historyIndex,
-    updateEdit,
-    undo,
-    redo,
-    resetHistory,
     canUndo,
     canRedo,
+    addToHistory,
+    updateCurrent,
+    undo,
+    redo,
+    reset,
+    jumpToIndex,
   };
 }
