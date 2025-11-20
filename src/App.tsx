@@ -10,10 +10,13 @@ export interface ImageState {
 }
 
 export interface EditValues {
+    // Basic adjustments
     blur: number;
     grayscale: boolean;
     brightness: number;
     contrast: number;
+    
+    // Transform
     flipH: boolean;
     flipV: boolean;
     rotation: number;
@@ -27,6 +30,15 @@ export interface EditValues {
         width: number;
         height: number;
     } | null;
+    
+    // Advanced adjustments
+    saturation: number;
+    hue: number;
+    temperature: number;
+    shadows: number;
+    highlights: number;
+    vignette: number;
+    sharpen: number;
 }
 
 export default function App() {

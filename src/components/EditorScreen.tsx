@@ -6,6 +6,7 @@ import { ExportModal } from './ExportModal';
 import { AIChatPanel } from './AIChatPanel';
 import { AISettingsModal, AISettings } from './AISettingsModal';
 import { EditHistoryTimeline } from './EditHistoryTimeline';
+import { AdvancedAdjustments } from './AdvancedAdjustments';
 import { useEditHistory } from '../hooks/useEditHistory';
 import { Button } from './ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
@@ -34,16 +35,28 @@ export function EditorScreen({
 }: EditorScreenProps) {
     // Initialize edit history hook
     const initialEdits: EditValues = {
+        // Basic adjustments
         blur: 0,
         grayscale: false,
         brightness: 100,
         contrast: 100,
+
+        // Transform
         flipH: false,
         flipV: false,
         rotation: 0,
         crop: null,
         frame: null,
         resize: null,
+
+        // Advanced adjustments
+        saturation: 100,
+        hue: 0,
+        temperature: 0,
+        shadows: 0,
+        highlights: 0,
+        vignette: 0,
+        sharpen: 0,
     };
 
     const {
@@ -198,7 +211,7 @@ export function EditorScreen({
                         <h2 className="text-slate-900 hidden sm:block">
                             Chỉnh sửa ảnh
                         </h2>
-                        
+
                         {/* Zoom Display and Reset View */}
                         <div className="hidden md:flex items-center gap-2 ml-4 pl-4 border-l border-slate-200">
                             <Button
@@ -217,6 +230,16 @@ export function EditorScreen({
                     </div>
 
                     <div className="flex items-center gap-1 md:gap-2 flex-wrap">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShowHistoryTimeline(true)}
+                            className="hidden md:flex"
+                        >
+                            <History className="w-4 h-4 mr-2" />
+                            Lịch sử ({currentIndex + 1}/{history.length})
+                        </Button>
+
                         <Button
                             variant="outline"
                             size="sm"
@@ -255,16 +278,6 @@ export function EditorScreen({
                             className="sm:hidden shrink-0"
                         >
                             <Redo2 className="w-4 h-4" />
-                        </Button>
-
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setShowHistoryTimeline(true)}
-                            className="hidden md:flex"
-                        >
-                            <History className="w-4 h-4 mr-2" />
-                            Lịch sử ({currentIndex + 1}/{history.length})
                         </Button>
                         <Button
                             variant="outline"
@@ -316,7 +329,10 @@ export function EditorScreen({
                         editMode={editMode}
                         onCropChange={handleCropChange}
                         onRotationChange={handleRotationChange}
-                        onEditEnd={() => displayEdits.crop && handleCropEnd(displayEdits.crop)}
+                        onEditEnd={() =>
+                            displayEdits.crop &&
+                            handleCropEnd(displayEdits.crop)
+                        }
                         onZoomChange={setCanvasZoom}
                         onResetView={() => {}}
                     />
@@ -353,6 +369,11 @@ export function EditorScreen({
                                 onEditCommit={handleEditCommit}
                                 editMode={editMode}
                                 onEditModeChange={setEditMode}
+                            />
+                            <AdvancedAdjustments
+                                edits={displayEdits}
+                                onEditChange={handleEditChange}
+                                onEditCommit={handleEditCommit}
                             />
                         </TabsContent>
 
