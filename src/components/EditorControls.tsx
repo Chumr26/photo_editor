@@ -5,7 +5,7 @@ import { Switch } from './ui/switch';
 import { Label } from './ui/label';
 import { Input } from './ui/input';
 import { Separator } from './ui/separator';
-import { Droplet, Palette, Sun, Contrast, FlipHorizontal2, FlipVertical2, Crop, Maximize2, Frame, Expand, RotateCw, Check, X } from 'lucide-react';
+import { Droplet, Palette, Sun, Contrast, FlipHorizontal2, FlipVertical2, Crop, Maximize2, Frame, Expand, RotateCw, RotateCcw, Check, X } from 'lucide-react';
 import { useState } from 'react';
 
 interface EditorControlsProps {
@@ -176,8 +176,51 @@ export function EditorControls({ edits, onEditChange, onEditCommit, editMode, on
           </div>
           
           <div className="bg-blue-50 p-4 rounded-lg text-sm text-slate-700">
-            💡 Kéo trên ảnh để chọn vùng cắt. Kéo các góc để điều chỉnh kích thước.
+            💡 Kéo trên ảnh để chọn vùng cắt. Kéo ra ngoài ảnh để mở rộng canvas.
           </div>
+
+          <Separator className="my-4" />
+
+          {/* Crop Background Color */}
+          <div className="space-y-3">
+            <Label htmlFor="crop-bg-color" className="text-sm font-medium">
+              Màu nền mở rộng
+            </Label>
+            <div className="flex items-center gap-2">
+              <Input
+                id="crop-bg-color"
+                type="color"
+                value={edits.cropBackgroundColor}
+                onChange={(e) => onEditChange('cropBackgroundColor', e.target.value)}
+                onBlur={(e) => onEditCommit('cropBackgroundColor', e.target.value)}
+                className="w-16 h-10 cursor-pointer"
+                title="Chọn màu nền cho vùng mở rộng"
+              />
+              <div className="flex-1">
+                <Input
+                  type="text"
+                  value={edits.cropBackgroundColor}
+                  onChange={(e) => onEditChange('cropBackgroundColor', e.target.value)}
+                  onBlur={(e) => onEditCommit('cropBackgroundColor', e.target.value)}
+                  placeholder="#ffffff"
+                  className="font-mono text-sm"
+                />
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onEditCommit('cropBackgroundColor', '#ffffff')}
+                title="Đặt lại màu trắng"
+              >
+                <RotateCcw className="w-4 h-4" />
+              </Button>
+            </div>
+            <p className="text-xs text-slate-500">
+              Màu sẽ hiển thị khi vùng cắt mở rộng ra ngoài ảnh gốc
+            </p>
+          </div>
+
+          <Separator className="my-4" />
 
           <div className="flex gap-2">
             <Button

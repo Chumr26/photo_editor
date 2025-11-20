@@ -52,6 +52,7 @@ export function EditorScreen({
         flipV: false,
         rotation: 0,
         crop: null,
+        cropBackgroundColor: '#ffffff', // Default to white
         frame: null,
         resize: null,
 

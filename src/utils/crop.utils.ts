@@ -51,6 +51,7 @@ export function calculateImageDisplayBounds(
 
 /**
  * Convert crop area from canvas percentage to image pixel coordinates
+ * Returns extended dimensions that may have negative offsets if crop extends beyond image
  */
 export function cropPercentToImagePixels(
   cropPercent: CropArea,
@@ -68,7 +69,7 @@ export function cropPercentToImagePixels(
   const cropCanvasH = (cropPercent.height / 100) * canvas.height;
   
   // Convert canvas pixels to image pixels
-  // Calculate relative position within the displayed image
+  // Calculate relative position within the displayed image (can be negative for extended crops)
   const relativeX = cropCanvasX - displayBounds.x;
   const relativeY = cropCanvasY - displayBounds.y;
   
@@ -76,10 +77,11 @@ export function cropPercentToImagePixels(
   const scaleX = imageWidth / displayBounds.width;
   const scaleY = imageHeight / displayBounds.height;
   
-  const imageX = Math.max(0, Math.round(relativeX * scaleX));
-  const imageY = Math.max(0, Math.round(relativeY * scaleY));
-  const imageW = Math.min(imageWidth - imageX, Math.round(cropCanvasW * scaleX));
-  const imageH = Math.min(imageHeight - imageY, Math.round(cropCanvasH * scaleY));
+  // Allow negative values for extended crops
+  const imageX = Math.round(relativeX * scaleX);
+  const imageY = Math.round(relativeY * scaleY);
+  const imageW = Math.round(cropCanvasW * scaleX);
+  const imageH = Math.round(cropCanvasH * scaleY);
   
   return {
     x: imageX,

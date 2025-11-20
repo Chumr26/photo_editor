@@ -79,6 +79,7 @@ export interface EditValues {
     flipV: boolean;
     rotation: number;
     crop: { x: number; y: number; width: number; height: number } | null;
+    cropBackgroundColor: string; // Color for extended crop areas (hex or 'transparent')
     frame: {
         width: number;
         height: number;

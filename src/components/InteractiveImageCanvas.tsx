@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { EditValues } from '../App';
-import { cropPercentToImagePixels, cropImagePixelsToPercent } from '../utils/crop.utils';
+import { cropPercentToImagePixels, cropImagePixelsToPercent, calculateImageDisplayBounds } from '../utils/crop.utils';
 
 /**
  * InteractiveImageCanvas - Main canvas component for image editing
@@ -161,13 +161,44 @@ export function InteractiveImageCanvas({
     let sourceY = 0;
     let sourceWidth = img.width;
     let sourceHeight = img.height;
+    let cropOffsetX = 0; // Offset if crop extends left of image
+    let cropOffsetY = 0; // Offset if crop extends top of image
+    let hasExtendedCrop = false;
 
     // Apply crop if exists and not currently in crop mode (show final result)
     if (edits.crop && editMode !== 'crop') {
-      sourceX = edits.crop.x;
-      sourceY = edits.crop.y;
-      sourceWidth = edits.crop.width;
-      sourceHeight = edits.crop.height;
+      // Check if crop extends beyond image boundaries
+      const crop = edits.crop;
+      
+      // Calculate offsets for extended crop
+      if (crop.x < 0) {
+        cropOffsetX = -crop.x;
+        sourceX = 0;
+        sourceWidth = Math.min(img.width, crop.width + crop.x);
+        hasExtendedCrop = true;
+      } else {
+        sourceX = crop.x;
+        sourceWidth = Math.min(img.width - crop.x, crop.width);
+      }
+      
+      if (crop.y < 0) {
+        cropOffsetY = -crop.y;
+        sourceY = 0;
+        sourceHeight = Math.min(img.height, crop.height + crop.y);
+        hasExtendedCrop = true;
+      } else {
+        sourceY = crop.y;
+        sourceHeight = Math.min(img.height - crop.y, crop.height);
+      }
+      
+      // Check if crop extends right or bottom
+      if (crop.x + crop.width > img.width || crop.y + crop.height > img.height) {
+        hasExtendedCrop = true;
+      }
+      
+      // Use full crop dimensions for output (including extended areas)
+      sourceWidth = crop.width;
+      sourceHeight = crop.height;
     }
 
     // Apply resize if set
@@ -208,6 +239,12 @@ export function InteractiveImageCanvas({
 
     ctx.save();
     
+    // If we have an extended crop, draw crop background first
+    if (hasExtendedCrop && edits.crop) {
+      ctx.fillStyle = edits.cropBackgroundColor || '#ffffff';
+      ctx.fillRect(imgX, imgY, finalWidth, finalHeight);
+    }
+    
     // Apply transformations at image center
     ctx.translate(imgX + finalWidth / 2, imgY + finalHeight / 2);
     
@@ -219,17 +256,49 @@ export function InteractiveImageCanvas({
     const scaleY = edits.flipV ? -1 : 1;
     ctx.scale(scaleX, scaleY);
 
-    ctx.drawImage(
-      img,
-      sourceX,
-      sourceY,
-      sourceWidth,
-      sourceHeight,
-      -finalWidth / 2,
-      -finalHeight / 2,
-      finalWidth,
-      finalHeight
-    );
+    // For extended crop, calculate where to draw the actual image within the crop area
+    if (hasExtendedCrop && edits.crop) {
+      const crop = edits.crop;
+      
+      // Calculate the actual image portion dimensions and position
+      const imgSourceX = Math.max(0, crop.x);
+      const imgSourceY = Math.max(0, crop.y);
+      const imgSourceW = Math.min(img.width - imgSourceX, crop.width - cropOffsetX);
+      const imgSourceH = Math.min(img.height - imgSourceY, crop.height - cropOffsetY);
+      
+      // Calculate offset within the crop area where image starts
+      const destOffsetX = (cropOffsetX / crop.width) * finalWidth - finalWidth / 2;
+      const destOffsetY = (cropOffsetY / crop.height) * finalHeight - finalHeight / 2;
+      
+      // Calculate dimensions for the image portion
+      const destW = (imgSourceW / crop.width) * finalWidth;
+      const destH = (imgSourceH / crop.height) * finalHeight;
+      
+      ctx.drawImage(
+        img,
+        imgSourceX,
+        imgSourceY,
+        imgSourceW,
+        imgSourceH,
+        destOffsetX,
+        destOffsetY,
+        destW,
+        destH
+      );
+    } else {
+      // Normal rendering without extended crop
+      ctx.drawImage(
+        img,
+        sourceX,
+        sourceY,
+        Math.min(sourceWidth, img.width - sourceX),
+        Math.min(sourceHeight, img.height - sourceY),
+        -finalWidth / 2,
+        -finalHeight / 2,
+        finalWidth,
+        finalHeight
+      );
+    }
 
     ctx.restore();
 
@@ -438,15 +507,67 @@ export function InteractiveImageCanvas({
       const cropW = (cropArea.width / 100) * canvas.width;
       const cropH = (cropArea.height / 100) * canvas.height;
 
+      // Calculate image display bounds to show boundary markers
+      const displayBounds = calculateImageDisplayBounds(
+        canvas,
+        img.width,
+        img.height,
+        imageTransform
+      );
+
       // Clear crop area (make it visible)
       ctx.save();
       ctx.globalCompositeOperation = 'destination-out';
       ctx.fillRect(cropX, cropY, cropW, cropH);
       ctx.restore();
 
+      // Fill extended areas with crop background color
+      ctx.save();
+      ctx.fillStyle = edits.cropBackgroundColor || '#ffffff';
+      ctx.globalAlpha = 0.7;
+      
+      // Draw background in areas outside the image bounds
+      // Top extension
+      if (cropY < displayBounds.y) {
+        const extendHeight = Math.min(displayBounds.y - cropY, cropH);
+        ctx.fillRect(cropX, cropY, cropW, extendHeight);
+      }
+      // Bottom extension
+      if (cropY + cropH > displayBounds.y + displayBounds.height) {
+        const startY = Math.max(cropY, displayBounds.y + displayBounds.height);
+        const extendHeight = (cropY + cropH) - startY;
+        ctx.fillRect(cropX, startY, cropW, extendHeight);
+      }
+      // Left extension
+      if (cropX < displayBounds.x) {
+        const extendWidth = Math.min(displayBounds.x - cropX, cropW);
+        const startY = Math.max(cropY, displayBounds.y);
+        const height = Math.min(cropH, displayBounds.y + displayBounds.height - startY);
+        ctx.fillRect(cropX, startY, extendWidth, height);
+      }
+      // Right extension
+      if (cropX + cropW > displayBounds.x + displayBounds.width) {
+        const startX = Math.max(cropX, displayBounds.x + displayBounds.width);
+        const extendWidth = (cropX + cropW) - startX;
+        const startY = Math.max(cropY, displayBounds.y);
+        const height = Math.min(cropH, displayBounds.y + displayBounds.height - startY);
+        ctx.fillRect(startX, startY, extendWidth, height);
+      }
+      
+      ctx.restore();
+
+      // Draw image boundary marker (dashed line)
+      ctx.save();
+      ctx.strokeStyle = '#f59e0b'; // Orange color for image boundary
+      ctx.lineWidth = 2;
+      ctx.setLineDash([5, 5]);
+      ctx.strokeRect(displayBounds.x, displayBounds.y, displayBounds.width, displayBounds.height);
+      ctx.restore();
+
       // Draw crop border
       ctx.strokeStyle = '#3b82f6';
       ctx.lineWidth = 3;
+      ctx.setLineDash([]); // Solid line
       ctx.strokeRect(cropX, cropY, cropW, cropH);
 
       // Draw corner handles
@@ -736,8 +857,9 @@ export function InteractiveImageCanvas({
             prevH = Math.abs(prevH);
           }
 
-          prevX = Math.max(0, Math.min(100 - prevW, prevX));
-          prevY = Math.max(0, Math.min(100 - prevH, prevY));
+          // Remove boundary constraints to allow extended crop
+          // prevX = Math.max(0, Math.min(100 - prevW, prevX));
+          // prevY = Math.max(0, Math.min(100 - prevH, prevY));
 
           return { x: prevX, y: prevY, width: prevW, height: prevH };
         });
