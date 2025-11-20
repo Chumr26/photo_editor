@@ -7,6 +7,7 @@ import { AIChatPanel } from './AIChatPanel';
 import { AISettingsModal, AISettings } from './AISettingsModal';
 import { EditHistoryTimeline } from './EditHistoryTimeline';
 import { AdvancedAdjustments } from './AdvancedAdjustments';
+import { PresetFilters } from './PresetFilters';
 import { useEditHistory } from '../hooks/useEditHistory';
 import { Button } from './ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
@@ -373,6 +374,10 @@ export function EditorScreen({
                             <AdvancedAdjustments
                                 edits={displayEdits}
                                 onEditChange={handleEditChange}
+                                onEditCommit={handleEditCommit}
+                            />
+                            <PresetFilters
+                                edits={displayEdits}
                                 onEditCommit={handleEditCommit}
                             />
                         </TabsContent>
