@@ -1,7 +1,7 @@
 
-  # Image Editor Web App
+  # photo_editor
 
-  This is a code bundle for Image Editor Web App. The original project is available at https://www.figma.com/design/gUyvhNkvmp5BJfs7VjqAaE/Image-Editor-Web-App.
+  This is a code bundle for photo_editor. The original project is available at https://www.figma.com/design/7wfE0HWTE1SsJZ1nwaMu9t/photo_editor.
 
   ## Running the code
 
