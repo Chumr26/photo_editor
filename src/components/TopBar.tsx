@@ -10,7 +10,7 @@ interface TopBarProps {
 }
 
 export function TopBar({ onReplace }: TopBarProps) {
-  const { zoom, setZoom, undo, redo, historyIndex, history, showGrid, toggleGrid, showRulers, toggleRulers, resetToInitialState, image, adjustments, settings } = useEditorStore();
+  const { zoom, setZoom, undo, redo, historyIndex, history, showGrid, toggleGrid, showRulers, toggleRulers, resetToInitialState, image, adjustments, settings, textBoxes } = useEditorStore();
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
 
@@ -22,7 +22,8 @@ export function TopBar({ onReplace }: TopBarProps) {
         image,
         adjustments,
         settings.defaultExportFormat,
-        settings.exportQuality
+        settings.exportQuality,
+        textBoxes
       );
     } catch (error) {
       console.error('Export failed:', error);

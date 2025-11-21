@@ -1,4 +1,4 @@
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 export interface ExportOptions {
   format: 'jpg' | 'png' | 'webp' | 'svg';
@@ -26,10 +26,26 @@ export interface Adjustments {
   sharpen: number;
 }
 
+export interface TextBox {
+  id: string;
+  text: string;
+  x: number;
+  y: number;
+  fontSize: number;
+  fontFamily: string;
+  color: string;
+  fontWeight: string;
+  fontStyle?: string;
+  textAlign?: string;
+  width?: number;
+  height?: number;
+}
+
 export async function exportImage(
   image: ImageData,
   adjustments: Adjustments,
-  options: ExportOptions
+  options: ExportOptions,
+  textBoxes?: TextBox[]
 ): Promise<void> {
   try {
     // Create a temporary canvas to render the final image
@@ -85,6 +101,32 @@ export async function exportImage(
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
     ctx.restore();
 
+    // Draw text boxes if provided
+    if (textBoxes && textBoxes.length > 0) {
+      textBoxes.forEach((textBox) => {
+        ctx.save();
+        
+        // Scale font size according to export scale
+        const scaledFontSize = textBox.fontSize * options.scale;
+        ctx.font = `${textBox.fontStyle || 'normal'} ${textBox.fontWeight || '400'} ${scaledFontSize}px ${textBox.fontFamily}`;
+        ctx.fillStyle = textBox.color;
+        ctx.textAlign = (textBox.textAlign as CanvasTextAlign) || 'left';
+        ctx.textBaseline = 'top';
+        
+        // Handle multi-line text
+        const lines = textBox.text.split('\n');
+        lines.forEach((line, i) => {
+          ctx.fillText(
+            line, 
+            textBox.x * options.scale, 
+            (textBox.y + (i * textBox.fontSize * 1.2)) * options.scale
+          );
+        });
+        
+        ctx.restore();
+      });
+    }
+
     // Convert to blob and download
     return new Promise<void>((resolve, reject) => {
       canvas.toBlob(
@@ -118,7 +160,8 @@ export async function quickExport(
   image: ImageData,
   adjustments: Adjustments,
   defaultFormat: 'jpg' | 'png' | 'webp' | 'svg' = 'png',
-  defaultQuality: number = 90
+  defaultQuality: number = 90,
+  textBoxes?: TextBox[]
 ): Promise<void> {
   try {
     await exportImage(image, adjustments, {
@@ -126,7 +169,7 @@ export async function quickExport(
       quality: defaultQuality,
       scale: 1,
       transparent: false,
-    });
+    }, textBoxes);
     
     toast.success('Xuất ảnh thành công! / Export successful!');
   } catch (error) {

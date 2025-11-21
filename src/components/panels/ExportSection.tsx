@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { Download, FileImage, Loader2 } from 'lucide-react';
 import { useEditorStore } from '../../store/editorStore';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { exportImage } from '../../utils/exportImage';
 
 type ExportFormat = 'jpg' | 'png' | 'webp' | 'svg';
 
 export function ExportSection() {
-  const { image, adjustments, settings } = useEditorStore();
+  const { image, adjustments, settings, textBoxes } = useEditorStore();
   
   // Initialize from settings
   const [format, setFormat] = useState<ExportFormat>(settings.defaultExportFormat);
@@ -36,7 +36,7 @@ export function ExportSection() {
         scale,
         transparent,
         filename,
-      });
+      }, textBoxes);
       
       toast.success('Xuất ảnh thành công! / Export successful!');
     } catch (error) {
