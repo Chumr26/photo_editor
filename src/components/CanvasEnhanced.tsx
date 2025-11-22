@@ -1,11 +1,13 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { useEditorStore } from '../store/editorStore';
 import { toast } from 'sonner';
+import { useTranslation } from '../hooks/useTranslation';
 
 type DragHandle = 'tl' | 'tr' | 'bl' | 'br' | 'rotate' | 'move' | null;
 type SelectedElement = { type: 'text'; id: string } | { type: 'layer'; id: string } | null;
 
 export function Canvas() {
+  const { t } = useTranslation();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const drawingCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -88,7 +90,7 @@ export function Canvas() {
           deleteLayer(selectedElement.id);
         }
         setSelectedElement(null);
-        toast.success('Đã xóa / Deleted');
+        toast.success(t('toast.delete'));
       }
       
       // Copy (Ctrl+C / Cmd+C)
@@ -98,13 +100,13 @@ export function Canvas() {
           const textBox = textBoxes.find(t => t.id === selectedElement.id);
           if (textBox) {
             setCopiedElement({ type: 'text', data: textBox });
-            toast.success('Đã sao chép / Copied');
+            toast.success(t('toast.copy'));
           }
         } else if (selectedElement.type === 'layer') {
           const layer = layers.find(l => l.id === selectedElement.id);
           if (layer) {
             setCopiedElement({ type: 'layer', data: layer });
-            toast.success('Đã sao chép / Copied');
+            toast.success(t('toast.copy'));
           }
         }
       }
@@ -121,7 +123,7 @@ export function Canvas() {
           };
           useEditorStore.getState().addTextBox(newTextBox);
           setSelectedElement({ type: 'text', id: newTextBox.id });
-          toast.success('Đã dán / Pasted');
+          toast.success(t('toast.paste'));
         } else if (copiedElement.type === 'layer') {
           const newLayer = {
             ...copiedElement.data,
@@ -132,7 +134,7 @@ export function Canvas() {
           };
           addLayer(newLayer);
           setSelectedElement({ type: 'layer', id: newLayer.id });
-          toast.success('Đã dán / Pasted');
+          toast.success(t('toast.paste'));
         }
       }
       
@@ -141,7 +143,7 @@ export function Canvas() {
         e.preventDefault();
         if (selectedElement.type === 'text') {
           duplicateTextBox(selectedElement.id);
-          toast.success('Đã nhân đôi / Duplicated');
+          toast.success(t('toast.duplicate'));
         } else if (selectedElement.type === 'layer') {
           const layer = layers.find(l => l.id === selectedElement.id);
           if (layer) {
@@ -154,7 +156,7 @@ export function Canvas() {
             };
             addLayer(newLayer);
             setSelectedElement({ type: 'layer', id: newLayer.id });
-            toast.success('Đã nhân đôi / Duplicated');
+            toast.success(t('toast.duplicate'));
           }
         }
       }
@@ -730,7 +732,7 @@ export function Canvas() {
           };
           
           addLayer(newLayer);
-          toast.success(tool === 'brush' ? 'Đã lưu nét vẽ / Drawing saved' : 'Đã lưu nét xóa / Erasing saved');
+          toast.success(tool === 'brush' ? t('toast.drawing.saved') : t('toast.erasing.saved'));
           
           // Drawing canvas will be cleared in the main render loop after the layer is rendered
           // to prevent flickering
