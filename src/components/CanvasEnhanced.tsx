@@ -539,20 +539,23 @@ export function Canvas() {
     if (!canvasRef.current || !containerRef.current) return { x: 0, y: 0 };
     
     const canvas = canvasRef.current;
-    const container = containerRef.current;
-    const containerRect = container.getBoundingClientRect();
-    const scale = zoom / 100;
+    const canvasRect = canvas.getBoundingClientRect();
     
-    // Get mouse position relative to container center
-    const containerCenterX = containerRect.left + containerRect.width / 2;
-    const containerCenterY = containerRect.top + containerRect.height / 2;
+    // Get mouse position relative to canvas element (accounts for CSS scaling)
+    const mouseX = e.clientX - canvasRect.left;
+    const mouseY = e.clientY - canvasRect.top;
     
-    // Calculate mouse position considering pan and zoom
-    const x = ((e.clientX - containerCenterX - panX) / scale) + (canvas.width / 2);
-    const y = ((e.clientY - containerCenterY - panY) / scale) + (canvas.height / 2);
+    // Calculate the ratio between canvas internal size and rendered size
+    // This accounts for CSS scaling (maxWidth/maxHeight: 100%)
+    const scaleX = canvas.width / canvasRect.width;
+    const scaleY = canvas.height / canvasRect.height;
+    
+    // Convert mouse position to canvas coordinates
+    const x = mouseX * scaleX;
+    const y = mouseY * scaleY;
     
     return { x, y };
-  }, [zoom, panX, panY]);
+  }, []);
 
   // Check if clicking on text box
   const getClickedTextBox = useCallback((x: number, y: number) => {
