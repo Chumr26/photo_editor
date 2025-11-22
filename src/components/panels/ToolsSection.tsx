@@ -5,21 +5,23 @@ import { CurvesEditor } from './CurvesEditor';
 import { LevelsEditor } from './LevelsEditor';
 import { TextEditor } from './TextEditor';
 import { toast } from 'sonner';
+import { useTranslation } from '../../hooks/useTranslation';
 
 type ToolTab = 'adjustments' | 'color' | 'crop' | 'transform' | 'text' | 'insert' | 'brush' | 'advanced';
 
 const toolTabs = [
-  { id: 'adjustments', label: 'Điều chỉnh cơ bản', labelEn: 'Adjustments' },
-  { id: 'color', label: 'Màu sắc', labelEn: 'Color' },
-  { id: 'crop', label: 'Cắt', labelEn: 'Crop' },
-  { id: 'transform', label: 'Xoay & Lật', labelEn: 'Rotate & Flip' },
-  { id: 'text', label: 'Thêm chữ', labelEn: 'Text' },
-  { id: 'insert', label: 'Chèn ảnh', labelEn: 'Insert Image' },
-  { id: 'brush', label: 'Vẽ & Cọ', labelEn: 'Brush & Draw' },
-  { id: 'advanced', label: 'Nâng cao', labelEn: 'Advanced' },
+  { id: 'adjustments', labelKey: 'tools.tab.adjustments' },
+  { id: 'color', labelKey: 'tools.tab.color' },
+  { id: 'crop', labelKey: 'tools.tab.crop' },
+  { id: 'transform', labelKey: 'tools.tab.transform' },
+  { id: 'text', labelKey: 'tools.tab.text' },
+  { id: 'insert', labelKey: 'tools.tab.insert' },
+  { id: 'brush', labelKey: 'tools.tab.brush' },
+  { id: 'advanced', labelKey: 'tools.tab.advanced' },
 ] as const;
 
 export function ToolsSection() {
+  const { t } = useTranslation();
   const [showCurves, setShowCurves] = useState(false);
   const [showLevels, setShowLevels] = useState(false);
   const [showTextEditor, setShowTextEditor] = useState(false);
@@ -90,12 +92,12 @@ export function ToolsSection() {
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      toast.error('Vui lòng chọn tệp ảnh / Please select an image file');
+      toast.error(t('toast.insert.invalidFile'));
       return;
     }
 
     if (file.size > 20 * 1024 * 1024) {
-      toast.error('Ảnh quá lớn. Tối đa 20MB / Image too large. Max 20MB');
+      toast.error(t('toast.insert.tooLarge'));
       return;
     }
 
@@ -119,7 +121,7 @@ export function ToolsSection() {
           data: event.target?.result as string,
         });
         
-        toast.success('Đã thêm ảnh vào layer / Image added to layer');
+        toast.success(t('toast.insert.success'));
       };
       img.src = event.target?.result as string;
     };
@@ -189,7 +191,7 @@ export function ToolsSection() {
                 }
               `}
             >
-              <span>{tab.label}</span>
+              <span>{t(tab.labelKey)}</span>
               <ChevronRight className="w-4 h-4" />
             </button>
           ))}
@@ -203,7 +205,7 @@ export function ToolsSection() {
             {/* Brightness */}
             <div>
               <div className="flex justify-between items-center mb-2">
-                <label className="text-sm text-gray-300">Độ sáng (Brightness)</label>
+                <label className="text-sm text-gray-300">{t('adj.brightness')}</label>
                 <span className="text-xs text-gray-400">{adjustments.brightness}</span>
               </div>
               <input
@@ -221,7 +223,7 @@ export function ToolsSection() {
             {/* Contrast */}
             <div>
               <div className="flex justify-between items-center mb-2">
-                <label className="text-sm text-gray-300">Độ tương phản (Contrast)</label>
+                <label className="text-sm text-gray-300">{t('adj.contrast')}</label>
                 <span className="text-xs text-gray-400">{adjustments.contrast}</span>
               </div>
               <input
@@ -239,7 +241,7 @@ export function ToolsSection() {
             {/* Saturation */}
             <div>
               <div className="flex justify-between items-center mb-2">
-                <label className="text-sm text-gray-300">Độ bão hòa (Saturation)</label>
+                <label className="text-sm text-gray-300">{t('adj.saturation')}</label>
                 <span className="text-xs text-gray-400">{adjustments.saturation}</span>
               </div>
               <input
@@ -257,7 +259,7 @@ export function ToolsSection() {
             {/* Hue */}
             <div>
               <div className="flex justify-between items-center mb-2">
-                <label className="text-sm text-gray-300">Màu sắc (Hue)</label>
+                <label className="text-sm text-gray-300">{t('adj.hue')}</label>
                 <span className="text-xs text-gray-400">{adjustments.hue}°</span>
               </div>
               <input
@@ -273,7 +275,7 @@ export function ToolsSection() {
             {/* Blur */}
             <div>
               <div className="flex justify-between items-center mb-2">
-                <label className="text-sm text-gray-300">Làm mờ (Blur)</label>
+                <label className="text-sm text-gray-300">{t('adj.blur')}</label>
                 <span className="text-xs text-gray-400">{adjustments.blur}px</span>
               </div>
               <input
@@ -289,7 +291,7 @@ export function ToolsSection() {
             {/* Sharpen */}
             <div>
               <div className="flex justify-between items-center mb-2">
-                <label className="text-sm text-gray-300">Làm sắc nét (Sharpen)</label>
+                <label className="text-sm text-gray-300">{t('adj.sharpen')}</label>
                 <span className="text-xs text-gray-400">{adjustments.sharpen}</span>
               </div>
               <input
@@ -312,7 +314,7 @@ export function ToolsSection() {
                 onChange={(e) => updateAdjustments({ grayscale: e.target.checked })}
                 className="w-4 h-4 rounded border-gray-600 bg-gray-800"
               />
-              <span>Đen trắng (Grayscale)</span>
+              <span>{t('adj.grayscale')}</span>
             </label>
 
             {/* Sepia */}
@@ -323,7 +325,7 @@ export function ToolsSection() {
                 onChange={(e) => updateAdjustments({ sepia: e.target.checked })}
                 className="w-4 h-4 rounded border-gray-600 bg-gray-800"
               />
-              <span>Sepia (Vintage)</span>
+              <span>{t('adj.sepia')}</span>
             </label>
 
             <button
@@ -341,18 +343,18 @@ export function ToolsSection() {
               }}
               className="w-full px-3 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded text-sm transition-colors"
             >
-              Đặt lại (Reset All)
+              🔄 {t('adj.reset')}
             </button>
           </div>
         )}
 
         {activeToolTab === 'color' && (
           <div className="space-y-4" ref={(el) => { contentRefs.current.color = el; }}>
-            <h4 className="text-sm text-gray-300">Cân bằng màu (Color Balance)</h4>
+            <h4 className="text-sm text-gray-300">{t('tools.colorBalance')}</h4>
             
             {/* Tone Range Selector */}
             <div>
-              <label className="text-xs text-gray-400 block mb-2">Vùng màu (Tone Range)</label>
+              <label className="text-xs text-gray-400 block mb-2">{t('colorBalance.toneRange')}</label>
               <div className="grid grid-cols-3 gap-1">
                 <button
                   onClick={() => setColorToneRange('shadows')}
@@ -362,7 +364,7 @@ export function ToolsSection() {
                       : 'bg-gray-700 hover:bg-gray-600 text-gray-200'
                   }`}
                 >
-                  Tối (Shadows)
+                  {t('colorBalance.shadows')}
                 </button>
                 <button
                   onClick={() => setColorToneRange('midtones')}
@@ -372,7 +374,7 @@ export function ToolsSection() {
                       : 'bg-gray-700 hover:bg-gray-600 text-gray-200'
                   }`}
                 >
-                  Trung bình (Midtones)
+                  {t('colorBalance.midtones')}
                 </button>
                 <button
                   onClick={() => setColorToneRange('highlights')}
@@ -382,7 +384,7 @@ export function ToolsSection() {
                       : 'bg-gray-700 hover:bg-gray-600 text-gray-200'
                   }`}
                 >
-                  Sáng (Highlights)
+                  {t('colorBalance.highlights')}
                 </button>
               </div>
             </div>
@@ -465,12 +467,12 @@ export function ToolsSection() {
                 onChange={() => togglePreserveLuminosity()}
                 className="w-4 h-4 rounded border-gray-600 bg-gray-800"
               />
-              <span>Giữ độ sáng (Preserve Luminosity)</span>
+              <span>{t('colorBalance.preserveLuminosity')}</span>
             </label>
 
             {/* Current Values Display */}
             <div className="bg-gray-800 p-3 rounded space-y-1">
-              <div className="text-xs text-gray-400">Giá trị hiện tại ({colorToneRange}):</div>
+              <div className="text-xs text-gray-400">{t('colorBalance.currentValues')} ({t(`colorBalance.${colorToneRange}`)}):</div>
               <div className="grid grid-cols-3 gap-2 text-xs">
                 <div>
                   <span className="text-gray-500">C-R:</span>
@@ -498,13 +500,12 @@ export function ToolsSection() {
               onClick={() => resetColorBalance()}
               className="w-full px-3 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded text-sm transition-colors"
             >
-              🔄 Đặt lại (Reset All)
+              🔄 {t('colorBalance.reset')}
             </button>
 
             <div className="text-xs text-gray-400 space-y-1 bg-gray-800 p-2 rounded">
-              <p>💡 Điều chỉnh màu sắc theo vùng tối, trung bình, sáng</p>
-              <p>💡 Adjust colors in shadows, midtones, highlights</p>
-              <p>💡 Di chuyển thanh về 0 để loại bỏ hiệu ứng</p>
+              <p>💡 {t('colorBalance.tip1')}</p>
+              <p>💡 {t('colorBalance.tip2')}</p>
             </div>
           </div>
         )}
@@ -512,7 +513,7 @@ export function ToolsSection() {
         {activeToolTab === 'crop' && (
           <div className="space-y-4" ref={(el) => { contentRefs.current.crop = el; }}>
             <p className="text-sm text-gray-400">
-              Công cụ cắt ảnh (Crop tool). Chọn vùng trên canvas để cắt.
+              {t('crop.description')}
             </p>
             
             <button 
@@ -522,27 +523,27 @@ export function ToolsSection() {
               }}
               className="w-full px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm transition-colors"
             >
-              {cropMode ? '🔄 Vẽ lại / Redraw' : '✂️ Bắt đầu cắt / Start Crop'}
+              {cropMode ? `🔄 ${t('crop.redraw')}` : `✂️ ${t('crop.start')}`}
             </button>
             
             <div>
-              <label className="text-xs text-gray-400 block mb-2">Tỷ lệ (Aspect Ratio)</label>
+              <label className="text-xs text-gray-400 block mb-2">{t('crop.aspectRatio')}</label>
               <select 
                 onChange={(e) => handleAspectRatioChange(e.target.value)}
                 className="w-full px-2 py-1.5 bg-gray-800 border border-gray-700 rounded text-sm text-gray-200 focus:border-blue-500 focus:outline-none"
               >
-                <option value="free">Tự do (Free)</option>
-                <option value="1:1">1:1 (Vuông / Square)</option>
-                <option value="4:3">4:3 (Ngang / Landscape)</option>
+                <option value="free">{t('crop.free')}</option>
+                <option value="1:1">1:1 ({t('crop.square')})</option>
+                <option value="4:3">4:3 ({t('crop.landscape')})</option>
                 <option value="16:9">16:9 (Widescreen)</option>
                 <option value="3:2">3:2 (Photo)</option>
-                <option value="2:3">2:3 (Dọc / Portrait)</option>
+                <option value="2:3">2:3 ({t('crop.portrait')})</option>
               </select>
             </div>
 
             {cropAspectRatio && (
               <div className="text-xs text-gray-400 bg-gray-800 p-2 rounded">
-                🔒 Tỷ lệ khóa: {cropAspectRatio.toFixed(2)}:1
+                🔒 {t('crop.locked')}: {cropAspectRatio.toFixed(2)}:1
               </div>
             )}
             
@@ -551,7 +552,7 @@ export function ToolsSection() {
                 <button 
                   onClick={() => applyCrop()}
                   className="w-full px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded text-sm transition-colors">
-                  ✅ Áp dụng cắt (Apply Crop)
+                  ✅ {t('crop.apply')}
                 </button>
 
                 <button 
@@ -560,22 +561,21 @@ export function ToolsSection() {
                     setCropRect(null);
                   }}
                   className="w-full px-3 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded text-sm transition-colors">
-                  ❌ Hủy (Cancel)
+                  ❌ {t('crop.cancel')}
                 </button>
               </>
             )}
 
             <div className="text-xs text-gray-400 space-y-1 bg-gray-800 p-2 rounded">
-              <p>💡 Kéo trên canvas để chọn vùng cắt</p>
-              <p>💡 Drag on canvas to select crop area</p>
-              <p>💡 Chọn tỷ lệ để khóa kích thước</p>
+              <p>💡 {t('crop.tip1')}</p>
+              <p>💡 {t('crop.tip2')}</p>
             </div>
           </div>
         )}
 
         {activeToolTab === 'transform' && (
           <div className="space-y-4" ref={(el) => { contentRefs.current.transform = el; }}>
-            <h4 className="text-sm text-gray-300">Xoay ảnh (Rotate)</h4>
+            <h4 className="text-sm text-gray-300">{t('transform.rotate')}</h4>
             
             <div className="grid grid-cols-2 gap-2">
               <button 
@@ -599,36 +599,36 @@ export function ToolsSection() {
               onClick={() => rotateImage(180)}
               className="w-full px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm transition-colors"
             >
-              ↻ 180° Xoay ngược (Rotate 180°)
+              ↻ {t('transform.rotate180')}
             </button>
 
             <div className="h-px bg-gray-700" />
 
-            <h4 className="text-sm text-gray-300">Lật ảnh (Flip)</h4>
+            <h4 className="text-sm text-gray-300">{t('transform.flip')}</h4>
 
             <div className="grid grid-cols-2 gap-2">
               <button 
                 onClick={() => flipImageHorizontal()}
                 className="px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded text-sm transition-colors"
               >
-                ↔️ Lật ngang (Horizontal)
+                ↔️ {t('transform.flipH')}
               </button>
               
               <button 
                 onClick={() => flipImageVertical()}
                 className="px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded text-sm transition-colors"
               >
-                ↕️ Lật dọc (Vertical)
+                ↕️ {t('transform.flipV')}
               </button>
             </div>
 
             <div className="h-px bg-gray-700" />
 
-            <h4 className="text-sm text-gray-300">Xoay tự do (Free Rotation)</h4>
+            <h4 className="text-sm text-gray-300">{t('transform.freeRotate')}</h4>
 
             <div>
               <div className="flex justify-between items-center mb-2">
-                <label className="text-xs text-gray-400">Góc xoay (Angle)</label>
+                <label className="text-xs text-gray-400">{t('transform.angle')}</label>
                 <span className="text-xs text-gray-400">{freeRotation}°</span>
               </div>
               <input 
@@ -649,7 +649,7 @@ export function ToolsSection() {
                 value={freeRotation}
                 onChange={(e) => setFreeRotation(Number(e.target.value))}
                 className="w-full px-2 py-1.5 bg-gray-800 border border-gray-700 rounded text-sm text-gray-200 focus:border-blue-500 focus:outline-none"
-                placeholder="Nhập góc (Enter angle)"
+                placeholder={t('transform.enterAngle')}
               />
             </div>
 
@@ -663,14 +663,12 @@ export function ToolsSection() {
               disabled={freeRotation === 0}
               className="w-full px-3 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white rounded text-sm transition-colors"
             >
-              ✅ Áp dụng xoay (Apply Rotation)
+              ✅ {t('transform.apply')}
             </button>
 
             <div className="text-xs text-gray-400 space-y-1 bg-gray-800 p-2 rounded">
-              <p>💡 Sử dụng thanh trượt hoặc nhập góc</p>
-              <p>💡 Use slider or enter angle</p>
-              <p>💡 Góc dương: xoay thuận chiều kim đồng hồ</p>
-              <p>💡 Positive: clockwise, Negative: counter-clockwise</p>
+              <p>💡 {t('transform.tip1')}</p>
+              <p>💡 {t('transform.tip2')}</p>
             </div>
           </div>
         )}
@@ -683,14 +681,14 @@ export function ToolsSection() {
                 setShowTextEditor(true);
               }}
               className="w-full px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm transition-colors">
-              + Thêm chữ mới (Add New Text)
+              + {t('text.addNew')}
             </button>
 
             <div>
-              <label className="text-xs text-gray-400 block mb-2">Danh sách chữ (Text List)</label>
+              <label className="text-xs text-gray-400 block mb-2">{t('text.list')}</label>
               {textBoxes.length === 0 ? (
                 <div className="text-xs text-gray-500 text-center py-4 bg-gray-800 rounded">
-                  Chưa có chữ nào (No text added)
+                  {t('text.noText')}
                 </div>
               ) : (
                 <div className="space-y-2 max-h-60 overflow-y-auto">
@@ -706,14 +704,14 @@ export function ToolsSection() {
                             setShowTextEditor(true);
                           }}
                           className="p-1 hover:bg-blue-600 rounded text-gray-400 hover:text-white"
-                          title="Sửa / Edit"
+                          title={t('text.edit')}
                         >
                           <Edit2 className="w-3 h-3" />
                         </button>
                         <button
                           onClick={() => deleteTextBox(box.id)}
                           className="p-1 hover:bg-red-600 rounded text-gray-400 hover:text-white"
-                          title="Xóa / Delete"
+                          title={t('text.delete')}
                         >
                           <Trash2 className="w-3 h-3" />
                         </button>
@@ -741,14 +739,14 @@ export function ToolsSection() {
               className="w-full px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm transition-colors flex items-center justify-center gap-2"
             >
               <Upload className="w-4 h-4" />
-              <span>Tải ảnh lên (Upload Image)</span>
+              <span>{t('insert.upload')}</span>
             </button>
 
             <div>
-              <label className="text-xs text-gray-400 block mb-2">Danh sách ảnh (Image Layers)</label>
+              <label className="text-xs text-gray-400 block mb-2">{t('insert.list')}</label>
               {layers.filter(l => l.type === 'image').length === 0 ? (
                 <div className="text-xs text-gray-500 text-center py-4 bg-gray-800 rounded">
-                  Chưa có ảnh nào (No images added)
+                  {t('insert.noImages')}
                 </div>
               ) : (
                 <div className="space-y-2 max-h-60 overflow-y-auto">
@@ -766,7 +764,7 @@ export function ToolsSection() {
                         <button
                           onClick={() => deleteLayer(layer.id)}
                           className="p-1 hover:bg-red-600 rounded text-gray-400 hover:text-white"
-                          title="Xóa / Delete"
+                          title={t('common.delete')}
                         >
                           <Trash2 className="w-3 h-3" />
                         </button>
@@ -778,9 +776,8 @@ export function ToolsSection() {
             </div>
             
             <div className="text-xs text-gray-400 space-y-1 bg-gray-800 p-2 rounded">
-              <p>💡 Ảnh được thêm dưới dạng Layer</p>
-              <p>💡 Images are added as Layers</p>
-              <p>💡 Dùng công cụ Di chuyển (V) để chỉnh vị trí</p>
+              <p>💡 {t('insert.tip1')}</p>
+              <p>💡 {t('insert.tip2')}</p>
             </div>
           </div>
         )}
@@ -789,7 +786,7 @@ export function ToolsSection() {
           <div className="space-y-4" ref={(el) => { contentRefs.current.brush = el; }}>
             <div>
               <div className="flex justify-between items-center mb-2">
-                <label className="text-sm text-gray-300">Kích thước cọ (Brush Size)</label>
+                <label className="text-sm text-gray-300">{t('brush.size')}</label>
                 <span className="text-xs text-gray-400">{brushSettings.size}px</span>
               </div>
               <input 
@@ -804,7 +801,7 @@ export function ToolsSection() {
 
             <div>
               <div className="flex justify-between items-center mb-2">
-                <label className="text-sm text-gray-300">Độ mờ (Opacity)</label>
+                <label className="text-sm text-gray-300">{t('brush.opacity')}</label>
                 <span className="text-xs text-gray-400">{Math.round(brushSettings.opacity * 100)}%</span>
               </div>
               <input 
@@ -819,7 +816,7 @@ export function ToolsSection() {
 
             <div>
               <div className="flex justify-between items-center mb-2">
-                <label className="text-sm text-gray-300">Độ cứng (Hardness)</label>
+                <label className="text-sm text-gray-300">{t('brush.hardness')}</label>
                 <span className="text-xs text-gray-400">{brushSettings.hardness}%</span>
               </div>
               <input 
@@ -833,7 +830,7 @@ export function ToolsSection() {
             </div>
 
             <div>
-              <label className="text-xs text-gray-400 block mb-1">Màu cọ (Brush Color)</label>
+              <label className="text-xs text-gray-400 block mb-1">{t('brush.color')}</label>
               <input
                 type="color"
                 value={brushSettings.color}
@@ -867,30 +864,30 @@ export function ToolsSection() {
             <button 
               onClick={() => setShowCurves(true)}
               className="w-full px-3 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded text-sm transition-colors text-left">
-              📈 Đường cong (Curves)
+              📈 {t('tools.curves')}
             </button>
             <button 
               onClick={() => setShowLevels(true)}
               className="w-full px-3 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded text-sm transition-colors text-left">
-              📊 Cấp độ (Levels)
+              📊 {t('tools.levels')}
             </button>
             <button className="w-full px-3 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded text-sm transition-colors text-left">
-              🎨 Cân bằng màu (Color Balance)
+              🎨 {t('tools.colorBalance')}
             </button>
             <button className="w-full px-3 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded text-sm transition-colors text-left">
-              🌈 HSL / Selective Color
+              🌈 {t('advanced.hsl')}
             </button>
             <button className="w-full px-3 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded text-sm transition-colors text-left">
-              🔍 Sao chép/Làm lành (Clone/Heal)
+              🔍 {t('advanced.clone')}
             </button>
             <button className="w-full px-3 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded text-sm transition-colors text-left">
-              💧 Làm biến dạng (Liquify)
+              💧 {t('advanced.liquify')}
             </button>
             <button className="w-full px-3 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded text-sm transition-colors text-left">
-              📐 Hiệu chỉnh phối cảnh (Perspective)
+              📐 {t('advanced.perspective')}
             </button>
             <button className="w-full px-3 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded text-sm transition-colors text-left">
-              🔊 Giảm nhiễu (Noise Reduction)
+              🔊 {t('advanced.noise')}
             </button>
           </div>
         )}

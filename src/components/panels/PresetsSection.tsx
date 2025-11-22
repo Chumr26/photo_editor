@@ -1,10 +1,10 @@
 import { useEditorStore } from '../../store/editorStore';
+import { useTranslation } from '../../hooks/useTranslation';
 
 const presets = [
   {
     id: 'vintage',
-    name: 'Vintage ấm',
-    nameEn: 'Warm Vintage',
+    nameKey: 'preset.vintage',
     adjustments: {
       brightness: 10,
       contrast: 15,
@@ -15,8 +15,7 @@ const presets = [
   },
   {
     id: 'bw-film',
-    name: 'Phim đen trắng',
-    nameEn: 'Film B&W',
+    nameKey: 'preset.bwFilm',
     adjustments: {
       brightness: 5,
       contrast: 30,
@@ -25,8 +24,7 @@ const presets = [
   },
   {
     id: 'portrait',
-    name: 'Chân dung mềm',
-    nameEn: 'Portrait Soft',
+    nameKey: 'preset.portrait',
     adjustments: {
       brightness: 15,
       contrast: -10,
@@ -36,8 +34,7 @@ const presets = [
   },
   {
     id: 'cinematic',
-    name: 'Điện ảnh',
-    nameEn: 'Cinematic',
+    nameKey: 'preset.cinematic',
     adjustments: {
       brightness: -5,
       contrast: 25,
@@ -47,8 +44,7 @@ const presets = [
   },
   {
     id: 'high-contrast',
-    name: 'Tương phản cao',
-    nameEn: 'High Contrast',
+    nameKey: 'preset.highContrast',
     adjustments: {
       brightness: 0,
       contrast: 50,
@@ -57,8 +53,7 @@ const presets = [
   },
   {
     id: 'soft-glow',
-    name: 'Ánh sáng mềm',
-    nameEn: 'Soft Glow',
+    nameKey: 'preset.softGlow',
     adjustments: {
       brightness: 20,
       contrast: -15,
@@ -70,6 +65,7 @@ const presets = [
 
 export function PresetsSection() {
   const { updateAdjustments, resetAdjustments } = useEditorStore();
+  const { t } = useTranslation();
 
   const applyPreset = (preset: typeof presets[0]) => {
     resetAdjustments();
@@ -79,7 +75,7 @@ export function PresetsSection() {
   return (
     <div className="space-y-4">
       <p className="text-sm text-gray-400">
-        Áp dụng bộ lọc có sẵn (Apply preset filters)
+        {t('preset.description')}
       </p>
 
       {/* Preset grid */}
@@ -91,7 +87,7 @@ export function PresetsSection() {
             className="group relative aspect-square rounded-lg overflow-hidden bg-gray-800 hover:ring-2 hover:ring-blue-500 transition-all"
           >
             {/* Preview - would show actual preview in real implementation */}
-            <div className="absolute inset-0 bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center">
+            <div className="absolute inset-0 bg-linear-to-br from-gray-700 to-gray-900 flex items-center justify-center">
               <div className="text-4xl opacity-50">
                 {preset.id === 'vintage' && '📷'}
                 {preset.id === 'bw-film' && '🎞️'}
@@ -103,12 +99,9 @@ export function PresetsSection() {
             </div>
 
             {/* Label */}
-            <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent p-2">
+            <div className="absolute bottom-0 inset-x-0 bg-linear-to-t from-black/80 to-transparent p-2">
               <div className="text-xs text-white truncate">
-                {preset.name}
-              </div>
-              <div className="text-[10px] text-gray-300 truncate">
-                {preset.nameEn}
+                {t(preset.nameKey)}
               </div>
             </div>
 
@@ -123,7 +116,7 @@ export function PresetsSection() {
         onClick={resetAdjustments}
         className="w-full px-3 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded text-sm transition-colors"
       >
-        Xóa tất cả bộ lọc (Reset All Filters)
+        {t('preset.resetAll')}
       </button>
 
       {/* Custom preset save */}
@@ -131,25 +124,22 @@ export function PresetsSection() {
 
       <div className="space-y-2">
         <h4 className="text-sm text-gray-300">
-          Lưu bộ lọc tùy chỉnh (Save Custom Preset)
+          {t('preset.saveCustom')}
         </h4>
         <div className="flex gap-2">
           <input
             type="text"
-            placeholder="Tên bộ lọc..."
+            placeholder={t('preset.presetName')}
             className="flex-1 px-2 py-1.5 bg-gray-800 border border-gray-700 rounded text-sm text-gray-200 focus:border-blue-500 focus:outline-none"
           />
           <button className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm transition-colors">
-            Lưu
+            {t('common.save')}
           </button>
         </div>
       </div>
 
       <div className="text-xs text-gray-500">
-        <p>💡 Điều chỉnh các thông số sau khi áp dụng bộ lọc</p>
-        <p className="mt-1">
-          💡 Adjust parameters after applying preset
-        </p>
+        <p>💡 {t('preset.tip')}</p>
       </div>
     </div>
   );

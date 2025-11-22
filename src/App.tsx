@@ -7,6 +7,7 @@ import { UploadZone } from './components/UploadZone';
 import { useEditorStore } from './store/editorStore';
 import { useState, useCallback, useEffect } from 'react';
 import './styles/globals.css';
+import { getTranslation } from './utils/translations';
 
 export default function App() {
     const {
@@ -104,9 +105,10 @@ export default function App() {
                         useEditorStore.getState().setCropMode(false);
                         useEditorStore.getState().setCropRect(null);
                         // Create a new text box
+                        const language = useEditorStore.getState().settings.language;
                         const newTextBox = {
                             id: `text-${Date.now()}`,
-                            text: 'Nhấp đúp để chỉnh sửa / Double-click to edit',
+                            text: getTranslation('text.defaultText', language),
                             x: 100,
                             y: 100,
                             fontSize: 32,

@@ -3,11 +3,13 @@ import { Download, FileImage, Loader2 } from 'lucide-react';
 import { useEditorStore } from '../../store/editorStore';
 import { toast } from 'sonner';
 import { exportImage } from '../../utils/exportImage';
+import { useTranslation } from '../../hooks/useTranslation';
 
 type ExportFormat = 'jpg' | 'png' | 'webp' | 'svg';
 
 export function ExportSection() {
   const { image, adjustments, settings, textBoxes } = useEditorStore();
+  const { t, language } = useTranslation();
   
   // Initialize from settings
   const [format, setFormat] = useState<ExportFormat>(settings.defaultExportFormat);
@@ -38,10 +40,10 @@ export function ExportSection() {
         filename,
       }, textBoxes);
       
-      toast.success('Xuất ảnh thành công! / Export successful!');
+      toast.success(t('toast.export.success'));
     } catch (error) {
       console.error('Export error:', error);
-      toast.error('Xuất ảnh thất bại / Export failed');
+      toast.error(t('toast.export.error'));
     } finally {
       setIsExporting(false);
     }
@@ -52,7 +54,7 @@ export function ExportSection() {
       {/* Format selection */}
       <div>
         <label className="text-sm text-gray-300 block mb-2">
-          Định dạng (Format)
+          {t('export.format')}
         </label>
         <div className="grid grid-cols-4 gap-2">
           {(['jpg', 'png', 'webp', 'svg'] as ExportFormat[]).map((fmt) => (
@@ -78,7 +80,7 @@ export function ExportSection() {
       {(format === 'jpg' || format === 'webp') && (
         <div>
           <div className="flex justify-between items-center mb-2">
-            <label className="text-sm text-gray-300">Chất lượng (Quality)</label>
+            <label className="text-sm text-gray-300">{t('export.quality')}</label>
             <span className="text-xs text-gray-400">{quality}%</span>
           </div>
           <input
@@ -90,7 +92,7 @@ export function ExportSection() {
             className="w-full"
           />
           <div className="text-xs text-gray-500 mt-1">
-            Dung lượng ước tính: ~{estimatedSize} KB
+            {t('export.estimatedSize')}: ~{estimatedSize} KB
           </div>
         </div>
       )}
@@ -104,14 +106,14 @@ export function ExportSection() {
             onChange={(e) => setTransparent(e.target.checked)}
             className="w-4 h-4 rounded border-gray-600 bg-gray-800"
           />
-          <span>Nền trong suốt (Transparent background)</span>
+          <span>{t('export.transparent')}</span>
         </label>
       )}
 
       {/* Scale/Resolution */}
       <div>
         <label className="text-sm text-gray-300 block mb-2">
-          Tỷ lệ xuất (Export Scale)
+          {t('export.scale')}
         </label>
         <div className="grid grid-cols-4 gap-2">
           {[0.5, 1, 1.5, 2].map((s) => (
@@ -133,7 +135,7 @@ export function ExportSection() {
         </div>
         {image && (
           <div className="text-xs text-gray-500 mt-2">
-            Kích thước xuất: {Math.round(image.width * scale)} × {Math.round(image.height * scale)} px
+            {t('export.outputSize')}: {Math.round(image.width * scale)} × {Math.round(image.height * scale)} px
           </div>
         )}
       </div>
@@ -141,23 +143,23 @@ export function ExportSection() {
       {/* DPI setting */}
       <div>
         <label className="text-sm text-gray-300 block mb-2">
-          DPI (cho in ấn)
+          {t('export.dpi')}
         </label>
         <select
           className="w-full px-2 py-1.5 bg-gray-800 border border-gray-700 rounded text-sm text-gray-200 focus:border-blue-500 focus:outline-none"
           defaultValue="72"
         >
-          <option value="72">72 DPI (Web)</option>
-          <option value="150">150 DPI (Tài liệu)</option>
-          <option value="300">300 DPI (In chất lượng cao)</option>
-          <option value="600">600 DPI (In chuyên nghiệp)</option>
+          <option value="72">{t('export.dpi72')}</option>
+          <option value="150">{t('export.dpi150')}</option>
+          <option value="300">{t('export.dpi300')}</option>
+          <option value="600">{t('export.dpi600')}</option>
         </select>
       </div>
 
       {/* Filename */}
       <div>
         <label className="text-sm text-gray-300 block mb-2">
-          Tên tệp (Filename)
+          {t('export.filename')}
         </label>
         <div className="flex gap-2">
           <input
@@ -179,7 +181,7 @@ export function ExportSection() {
           type="checkbox"
           className="w-4 h-4 rounded border-gray-600 bg-gray-800"
         />
-        <span>Xuất từng lớp riêng (Export layers separately)</span>
+        <span>{t('export.layersSeparately')}</span>
       </label>
 
       <div className="h-px bg-gray-700" />
@@ -187,14 +189,14 @@ export function ExportSection() {
       {/* Export presets */}
       <div>
         <label className="text-sm text-gray-300 block mb-2">
-          Bộ cài đặt xuất (Export Presets)
+          {t('export.presets')}
         </label>
         <select className="w-full px-2 py-1.5 bg-gray-800 border border-gray-700 rounded text-sm text-gray-200 focus:border-blue-500 focus:outline-none">
-          <option>Web tối ưu (Web Optimized)</option>
-          <option>Instagram (1080×1080, JPG 85%)</option>
-          <option>Facebook (1200×630, JPG 85%)</option>
-          <option>In ấn (Print, 300 DPI, PNG)</option>
-          <option>Logo (PNG trong suốt)</option>
+          <option>{t('export.preset.web')}</option>
+          <option>{t('export.preset.instagram')}</option>
+          <option>{t('export.preset.facebook')}</option>
+          <option>{t('export.preset.print')}</option>
+          <option>{t('export.preset.logo')}</option>
         </select>
       </div>
 
@@ -207,22 +209,22 @@ export function ExportSection() {
         {isExporting ? (
           <>
             <Loader2 className="w-5 h-5 animate-spin" />
-            <span>Đang xuất... (Exporting...)</span>
+            <span>{t('export.exporting')}</span>
           </>
         ) : (
           <>
             <Download className="w-5 h-5" />
-            <span>Tải ảnh về (Download)</span>
+            <span>{t('export.download')}</span>
           </>
         )}
       </button>
 
       {/* Info */}
       <div className="text-xs text-gray-500 space-y-1">
-        <p>💡 JPG: Nhỏ gọn, phù hợp cho web và ảnh</p>
-        <p>💡 PNG: Hỗ trợ trong suốt, chất lượng cao</p>
-        <p>💡 WebP: Nhỏ hơn JPG, hỗ trợ trong suốt</p>
-        <p>💡 SVG: Vector, kích thước linh hoạt</p>
+        <p>💡 {t('export.info.jpg')}</p>
+        <p>💡 {t('export.info.png')}</p>
+        <p>💡 {t('export.info.webp')}</p>
+        <p>💡 {t('export.info.svg')}</p>
       </div>
     </div>
   );

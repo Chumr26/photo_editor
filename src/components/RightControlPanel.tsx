@@ -7,28 +7,29 @@ import { HistorySection } from './panels/HistorySection';
 import { PresetsSection } from './panels/PresetsSection';
 import { ExportSection } from './panels/ExportSection';
 import { useEditorStore } from '../store/editorStore';
+import { useTranslation } from '../hooks/useTranslation';
 
 type Section = 'properties' | 'tools' | 'layers' | 'history' | 'presets' | 'export';
 
 interface PanelSection {
   id: Section;
-  title: string;
-  titleEn: string;
+  titleKey: string;
   component: React.ComponentType;
   defaultOpen?: boolean;
 }
 
-const sections: PanelSection[] = [
-  { id: 'properties', title: 'Thuộc tính', titleEn: 'Properties', component: PropertiesSection, defaultOpen: true },
-  { id: 'tools', title: 'Công cụ', titleEn: 'Tools', component: ToolsSection, defaultOpen: true },
-  { id: 'layers', title: 'Lớp', titleEn: 'Layers', component: LayersSection },
-  { id: 'history', title: 'Lịch sử', titleEn: 'History', component: HistorySection },
-  { id: 'presets', title: 'Bộ lọc sẵn', titleEn: 'Presets', component: PresetsSection },
-  { id: 'export', title: 'Xuất ảnh', titleEn: 'Export', component: ExportSection },
-];
-
 export function RightControlPanel() {
   const { openPanelSections, togglePanelSection, openPanelSection, tool, setActiveToolTab } = useEditorStore();
+  const { t } = useTranslation();
+  
+  const sections: PanelSection[] = [
+    { id: 'properties', titleKey: 'panel.properties', component: PropertiesSection, defaultOpen: true },
+    { id: 'tools', titleKey: 'panel.tools', component: ToolsSection, defaultOpen: true },
+    { id: 'layers', titleKey: 'panel.layers', component: LayersSection },
+    { id: 'history', titleKey: 'panel.history', component: HistorySection },
+    { id: 'presets', titleKey: 'panel.presets', component: PresetsSection },
+    { id: 'export', titleKey: 'panel.export', component: ExportSection },
+  ];
   
   // Refs for each section header/container
   const sectionRefs = useRef<Record<Section, HTMLDivElement | null>>({
@@ -107,15 +108,14 @@ export function RightControlPanel() {
           const Component = section.component;
 
           return (
-            <div key={section.id} className="border-b border-gray-700" ref={el => sectionRefs.current[section.id] = el}>
+            <div key={section.id} className="border-b border-gray-700" ref={el => { sectionRefs.current[section.id] = el; }}>
               {/* Section header */}
               <button
                 onClick={() => togglePanelSection(section.id)}
                 className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-700/50 transition-colors"
               >
                 <div className="flex items-center gap-2">
-                  <span className="text-gray-200">{section.title}</span>
-                  <span className="text-xs text-gray-500">({section.titleEn})</span>
+                  <span className="text-gray-200">{t(section.titleKey)}</span>
                 </div>
                 {isOpen ? (
                   <ChevronUp className="w-4 h-4 text-gray-400" />

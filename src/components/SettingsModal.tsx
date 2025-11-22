@@ -1,6 +1,7 @@
 import { X, Settings as SettingsIcon, Globe, Save, Download, Grid3x3, Ruler, History, Palette } from 'lucide-react';
 import { useEditorStore } from '../store/editorStore';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
+import { useTranslation } from '../hooks/useTranslation';
 
 interface SettingsModalProps {
   onClose: () => void;
@@ -8,15 +9,16 @@ interface SettingsModalProps {
 
 export function SettingsModal({ onClose }: SettingsModalProps) {
   const { settings, updateSettings, resetSettings } = useEditorStore();
+  const { t } = useTranslation();
 
   const handleSave = () => {
-    toast.success('Đã lưu cài đặt / Settings saved successfully');
+    toast.success(t('settings.saved'));
     onClose();
   };
 
   const handleReset = () => {
     resetSettings();
-    toast.success('Đã đặt lại cài đặt mặc định / Settings reset to defaults');
+    toast.success(t('settings.reset.success'));
   };
 
   return (
@@ -27,8 +29,8 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
           <div className="flex items-center gap-3">
             <SettingsIcon className="w-6 h-6 text-blue-400" />
             <div>
-              <h2 className="text-xl text-gray-100">Cài đặt (Settings)</h2>
-              <p className="text-xs text-gray-400">Tùy chỉnh trình chỉnh sửa / Customize editor preferences</p>
+              <h2 className="text-xl text-gray-100">{t('settings.title')}</h2>
+              <p className="text-xs text-gray-400">{t('settings.subtitle')}</p>
             </div>
           </div>
           <button
@@ -45,7 +47,7 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
           <section>
             <div className="flex items-center gap-2 mb-3">
               <Globe className="w-5 h-5 text-blue-400" />
-              <h3 className="text-gray-200 font-medium">Ngôn ngữ (Language)</h3>
+              <h3 className="text-gray-200 font-medium">{t('settings.language')}</h3>
             </div>
             <div className="space-y-2 ml-7">
               <label className="flex items-center gap-3 p-3 bg-gray-800 rounded cursor-pointer hover:bg-gray-750 transition-colors">
@@ -58,8 +60,8 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                   className="w-4 h-4"
                 />
                 <div>
-                  <div className="text-gray-200">Tiếng Việt</div>
-                  <div className="text-xs text-gray-400">Hiển thị giao diện bằng tiếng Việt</div>
+                  <div className="text-gray-200">{t('settings.language.vi')}</div>
+                  <div className="text-xs text-gray-400">{t('settings.language.vi.desc')}</div>
                 </div>
               </label>
               <label className="flex items-center gap-3 p-3 bg-gray-800 rounded cursor-pointer hover:bg-gray-750 transition-colors">
@@ -72,8 +74,8 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                   className="w-4 h-4"
                 />
                 <div>
-                  <div className="text-gray-200">English</div>
-                  <div className="text-xs text-gray-400">Show interface in English</div>
+                  <div className="text-gray-200">{t('settings.language.en')}</div>
+                  <div className="text-xs text-gray-400">{t('settings.language.en.desc')}</div>
                 </div>
               </label>
               <label className="flex items-center gap-3 p-3 bg-gray-800 rounded cursor-pointer hover:bg-gray-750 transition-colors">
@@ -86,8 +88,8 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                   className="w-4 h-4"
                 />
                 <div>
-                  <div className="text-gray-200">Song ngữ / Bilingual</div>
-                  <div className="text-xs text-gray-400">Hiển thị cả tiếng Việt và English</div>
+                  <div className="text-gray-200">{t('settings.language.both')}</div>
+                  <div className="text-xs text-gray-400">{t('settings.language.both.desc')}</div>
                 </div>
               </label>
             </div>
@@ -99,7 +101,7 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
           <section>
             <div className="flex items-center gap-2 mb-3">
               <Save className="w-5 h-5 text-green-400" />
-              <h3 className="text-gray-200 font-medium">Tự động lưu (Auto-Save)</h3>
+              <h3 className="text-gray-200 font-medium">{t('settings.autoSave')}</h3>
             </div>
             <div className="space-y-3 ml-7">
               <label className="flex items-center gap-3">
@@ -109,13 +111,13 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                   onChange={(e) => updateSettings({ autoSave: e.target.checked })}
                   className="w-4 h-4 rounded border-gray-600 bg-gray-800"
                 />
-                <span className="text-gray-200">Bật tự động lưu / Enable auto-save</span>
+                <span className="text-gray-200">{t('settings.autoSave.enable')}</span>
               </label>
 
               {settings.autoSave && (
                 <div>
                   <label className="text-sm text-gray-400 block mb-2">
-                    Khoảng thời gian lưu (Save interval): {settings.autoSaveInterval}s
+                    {t('settings.autoSave.interval')}: {settings.autoSaveInterval}s
                   </label>
                   <input
                     type="range"
@@ -127,8 +129,8 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                     className="w-full"
                   />
                   <div className="flex justify-between text-xs text-gray-500 mt-1">
-                    <span>1 phút</span>
-                    <span>10 phút</span>
+                    <span>{t('settings.autoSave.min1')}</span>
+                    <span>{t('settings.autoSave.min10')}</span>
                   </div>
                 </div>
               )}
@@ -141,27 +143,27 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
           <section>
             <div className="flex items-center gap-2 mb-3">
               <Download className="w-5 h-5 text-purple-400" />
-              <h3 className="text-gray-200 font-medium">Xuất ảnh (Export)</h3>
+              <h3 className="text-gray-200 font-medium">{t('settings.export')}</h3>
             </div>
             <div className="space-y-3 ml-7">
               <div>
                 <label className="text-sm text-gray-400 block mb-2">
-                  Định dạng mặc định (Default format)
+                  {t('settings.export.format')}
                 </label>
                 <select
                   value={settings.defaultExportFormat}
                   onChange={(e) => updateSettings({ defaultExportFormat: e.target.value as any })}
                   className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-gray-200 focus:border-blue-500 focus:outline-none"
                 >
-                  <option value="png">PNG (Lossless, trong suốt)</option>
-                  <option value="jpg">JPG (Nhỏ gọn, không trong suốt)</option>
-                  <option value="webp">WebP (Hiện đại, cân bằng)</option>
+                  <option value="png">{t('settings.export.format.png')}</option>
+                  <option value="jpg">{t('settings.export.format.jpg')}</option>
+                  <option value="webp">{t('settings.export.format.webp')}</option>
                 </select>
               </div>
 
               <div>
                 <label className="text-sm text-gray-400 block mb-2">
-                  Chất lượng xuất (Export quality): {settings.exportQuality}%
+                  {t('settings.export.quality')}: {settings.exportQuality}%
                 </label>
                 <input
                   type="range"
@@ -172,8 +174,8 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                   className="w-full"
                 />
                 <div className="flex justify-between text-xs text-gray-500 mt-1">
-                  <span>50% (Nhỏ)</span>
-                  <span>100% (Tốt nhất)</span>
+                  <span>50% ({t('settings.export.quality.low')})</span>
+                  <span>100% ({t('settings.export.quality.high')})</span>
                 </div>
               </div>
             </div>
@@ -185,28 +187,28 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
           <section>
             <div className="flex items-center gap-2 mb-3">
               <Palette className="w-5 h-5 text-yellow-400" />
-              <h3 className="text-gray-200 font-medium">Canvas</h3>
+              <h3 className="text-gray-200 font-medium">{t('settings.canvas')}</h3>
             </div>
             <div className="space-y-3 ml-7">
               <div>
                 <label className="text-sm text-gray-400 block mb-2">
-                  Nền canvas (Canvas background)
+                  {t('settings.canvas.background')}
                 </label>
                 <select
                   value={settings.canvasBackground}
                   onChange={(e) => updateSettings({ canvasBackground: e.target.value as any })}
                   className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-gray-200 focus:border-blue-500 focus:outline-none"
                 >
-                  <option value="dark">Tối (Dark)</option>
-                  <option value="light">Sáng (Light)</option>
-                  <option value="checkered">Ô vuông (Checkered)</option>
+                  <option value="dark">{t('settings.canvas.background.dark')}</option>
+                  <option value="light">{t('settings.canvas.background.light')}</option>
+                  <option value="checkered">{t('settings.canvas.background.checkered')}</option>
                 </select>
               </div>
 
               <div className="flex items-center gap-2">
                 <Grid3x3 className="w-4 h-4 text-gray-400" />
                 <label className="text-sm text-gray-400">
-                  Kích thước lưới (Grid size): {settings.gridSize}px
+                  {t('settings.canvas.gridSize')}: {settings.gridSize}px
                 </label>
               </div>
               <input
@@ -231,12 +233,12 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
           <section>
             <div className="flex items-center gap-2 mb-3">
               <History className="w-5 h-5 text-orange-400" />
-              <h3 className="text-gray-200 font-medium">Lịch sử (History)</h3>
+              <h3 className="text-gray-200 font-medium">{t('settings.history')}</h3>
             </div>
             <div className="space-y-3 ml-7">
               <div>
                 <label className="text-sm text-gray-400 block mb-2">
-                  Số bước lưu tối đa (Max history states): {settings.maxHistoryStates}
+                  {t('settings.history.maxStates')}: {settings.maxHistoryStates}
                 </label>
                 <input
                   type="range"
@@ -248,12 +250,12 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                   className="w-full"
                 />
                 <div className="flex justify-between text-xs text-gray-500 mt-1">
-                  <span>20 (Ít bộ nhớ)</span>
-                  <span>200 (Nhiều bộ nhớ)</span>
+                  <span>20 ({t('settings.history.memory.low')})</span>
+                  <span>200 ({t('settings.history.memory.high')})</span>
                 </div>
               </div>
               <p className="text-xs text-gray-500">
-                💡 Số bước càng nhiều, bộ nhớ sử dụng càng lớn
+                {t('settings.history.tip')}
               </p>
             </div>
           </section>
@@ -265,20 +267,20 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
             onClick={handleReset}
             className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded transition-colors text-sm"
           >
-            🔄 Đặt lại mặc định (Reset)
+            {t('settings.reset')}
           </button>
           <div className="flex gap-2">
             <button
               onClick={onClose}
               className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded transition-colors"
             >
-              ❌ Hủy (Cancel)
+              {t('settings.cancel')}
             </button>
             <button
               onClick={handleSave}
               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
             >
-              ✅ Lưu (Save)
+              {t('settings.save')}
             </button>
           </div>
         </div>

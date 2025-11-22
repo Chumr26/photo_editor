@@ -1,4 +1,5 @@
 import { toast } from 'sonner';
+import { getTranslation, type Language } from './translations';
 
 export interface ExportOptions {
   format: 'jpg' | 'png' | 'webp' | 'svg';
@@ -161,7 +162,8 @@ export async function quickExport(
   adjustments: Adjustments,
   defaultFormat: 'jpg' | 'png' | 'webp' | 'svg' = 'png',
   defaultQuality: number = 90,
-  textBoxes?: TextBox[]
+  textBoxes?: TextBox[],
+  language: Language = 'vi'
 ): Promise<void> {
   try {
     await exportImage(image, adjustments, {
@@ -171,9 +173,9 @@ export async function quickExport(
       transparent: false,
     }, textBoxes);
     
-    toast.success('Xuất ảnh thành công! / Export successful!');
+    toast.success(getTranslation('toast.export.success', language));
   } catch (error) {
-    toast.error('Xuất ảnh thất bại / Export failed');
+    toast.error(getTranslation('toast.export.error', language));
     throw error;
   }
 }

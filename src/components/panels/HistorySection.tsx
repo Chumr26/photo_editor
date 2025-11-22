@@ -1,9 +1,11 @@
 import { Clock, GitBranch, Save, RotateCcw } from 'lucide-react';
 import { useEditorStore } from '../../store/editorStore';
 import { useEffect, useRef } from 'react';
+import { useTranslation } from '../../hooks/useTranslation';
 
 export function HistorySection() {
   const { history, historyIndex, saveSnapshot, goToSnapshot } = useEditorStore();
+  const { t, language } = useTranslation();
   const currentSnapshotRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -35,10 +37,10 @@ export function HistorySection() {
     const diffMins = Math.floor(diffMs / 60000);
     const diffHours = Math.floor(diffMins / 60);
 
-    if (diffMins < 1) return 'Vừa xong';
-    if (diffMins < 60) return `${diffMins} phút trước`;
-    if (diffHours < 24) return `${diffHours} giờ trước`;
-    return date.toLocaleDateString('vi-VN');
+    if (diffMins < 1) return t('history.justNow');
+    if (diffMins < 60) return t('history.minutesAgo').replace('{n}', String(diffMins));
+    if (diffHours < 24) return t('history.hoursAgo').replace('{n}', String(diffHours));
+    return date.toLocaleDateString(language === 'en' ? 'en-US' : 'vi-VN');
   };
 
   return (
@@ -49,7 +51,7 @@ export function HistorySection() {
         className="w-full px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm transition-colors flex items-center justify-center gap-2"
       >
         <Save className="w-4 h-4" />
-        <span>Lưu bản nhánh (Save Snapshot)</span>
+        <span>{t('history.saveSnapshot')}</span>
       </button>
 
       {/* History timeline */}
@@ -60,10 +62,9 @@ export function HistorySection() {
         {history.length === 0 ? (
           <div className="text-center py-8 text-gray-500 text-sm">
             <Clock className="w-12 h-12 mx-auto mb-2 opacity-30" />
-            <p>Chưa có lịch sử chỉnh sửa</p>
-            <p className="text-xs">(No edit history yet)</p>
+            <p>{t('history.noHistory')}</p>
             <p className="text-xs mt-2">
-              Bắt đầu chỉnh sửa để lưu lịch sử
+              {t('history.startEditing')}
             </p>
           </div>
         ) : (
@@ -132,20 +133,17 @@ export function HistorySection() {
           <div className="h-px bg-gray-700" />
           <div className="text-xs text-gray-400 space-y-1">
             <div className="flex justify-between">
-              <span>Tổng số bản:</span>
+              <span>{t('history.totalSnapshots')}:</span>
               <span>{history.length}</span>
             </div>
             <div className="flex justify-between">
-              <span>Vị trí hiện tại:</span>
+              <span>{t('history.currentPosition')}:</span>
               <span>{historyIndex + 1}/{history.length}</span>
             </div>
           </div>
 
           <div className="text-xs text-gray-500">
-            <p>💡 Mẹo: Nhấn nút "Lưu bản nhánh" để tạo điểm lưu quan trọng</p>
-            <p className="mt-1">
-              💡 Tip: Click "Save Snapshot" to create important save points
-            </p>
+            <p>💡 {t('history.tip')}</p>
           </div>
         </>
       )}
