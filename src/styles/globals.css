@@ -193,6 +193,11 @@ html {
   font-size: var(--font-size);
 }
 
+/* Safe area for mobile devices */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
 /* Custom scrollbar for dark theme */
 ::-webkit-scrollbar {
   width: 8px;
@@ -245,4 +250,30 @@ input[type="range"]::-moz-range-thumb {
 /* Custom checkbox styling */
 input[type="checkbox"] {
   accent-color: #3b82f6;
+}
+
+/* Mobile optimizations */
+html, body {
+  overscroll-behavior: none;
+}
+
+@media (max-width: 768px) {
+  /* Hide scrollbars on mobile for cleaner look */
+  ::-webkit-scrollbar {
+    width: 0px;
+    height: 0px;
+    background: transparent;
+  }
+  
+  /* Ensure touch targets are large enough */
+  button, a, input, select, textarea {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Reset min-height for specific elements if needed */
+  .no-min-touch {
+    min-height: auto;
+    min-width: auto;
+  }
 }

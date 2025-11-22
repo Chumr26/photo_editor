@@ -5,6 +5,7 @@ import { KeyboardShortcuts } from './KeyboardShortcuts';
 import { SettingsModal } from './SettingsModal';
 import { quickExport } from '../utils/exportImage';
 import { useTranslation } from '../hooks/useTranslation';
+import { useIsMobile } from './ui/use-mobile';
 
 interface TopBarProps {
   onReplace: () => void;
@@ -15,6 +16,7 @@ export function TopBar({ onReplace }: TopBarProps) {
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const { t, language } = useTranslation();
+  const isMobile = useIsMobile();
 
   const handleExport = async () => {
     if (!image) return;
@@ -32,6 +34,75 @@ export function TopBar({ onReplace }: TopBarProps) {
       console.error('Export failed:', error);
     }
   };
+
+  if (isMobile) {
+    return (
+      <>
+        <div className="h-14 bg-[#2a2a2a] border-b border-gray-700 flex items-center justify-between px-2">
+          {/* Left section */}
+          <div className="flex items-center gap-1">
+            <button
+              onClick={onReplace}
+              className="p-2 text-gray-300 hover:bg-gray-700 rounded"
+              title={t('topbar.replaceImage.tooltip')}
+            >
+              <Upload className="w-5 h-5" />
+            </button>
+
+            <button
+              onClick={resetToInitialState}
+              className="p-2 text-orange-500 hover:bg-gray-700 rounded"
+              title={t('topbar.reset.tooltip')}
+            >
+              <RotateCcw className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Center section */}
+          <div className="flex items-center gap-1">
+            <button
+              onClick={undo}
+              disabled={historyIndex <= 0}
+              className="p-2 hover:bg-gray-700 text-gray-300 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              title={t('topbar.undo.tooltip')}
+            >
+              <Undo className="w-5 h-5" />
+            </button>
+
+            <button
+              onClick={redo}
+              disabled={historyIndex >= history.length - 1}
+              className="p-2 hover:bg-gray-700 text-gray-300 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              title={t('topbar.redo.tooltip')}
+            >
+              <Redo className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Right section */}
+          <div className="flex items-center gap-1">
+            <button
+              onClick={handleExport}
+              className="p-2 text-blue-500 hover:bg-gray-700 rounded"
+              title={t('topbar.download.tooltip')}
+            >
+              <Download className="w-5 h-5" />
+            </button>
+
+            <button
+              onClick={() => setShowSettings(true)}
+              className="p-2 hover:bg-gray-700 text-gray-300 rounded transition-colors"
+              title={t('topbar.settings.tooltip')}
+            >
+              <Settings className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+
+        {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
+      </>
+    );
+  }
 
   return (
     <>

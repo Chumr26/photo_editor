@@ -8,6 +8,7 @@ import { PresetsSection } from './panels/PresetsSection';
 import { ExportSection } from './panels/ExportSection';
 import { useEditorStore } from '../store/editorStore';
 import { useTranslation } from '../hooks/useTranslation';
+import { cn } from './ui/utils';
 
 type Section = 'properties' | 'tools' | 'layers' | 'history' | 'presets' | 'export';
 
@@ -18,7 +19,11 @@ interface PanelSection {
   defaultOpen?: boolean;
 }
 
-export function RightControlPanel() {
+interface RightControlPanelProps {
+  className?: string;
+}
+
+export function RightControlPanel({ className }: RightControlPanelProps) {
   const { openPanelSections, togglePanelSection, openPanelSection, tool, setActiveToolTab } = useEditorStore();
   const { t } = useTranslation();
   
@@ -101,7 +106,7 @@ export function RightControlPanel() {
   }, [tool, openPanelSection, setActiveToolTab]);
 
   return (
-    <div className="w-80 bg-[#252525] border-l border-gray-700 overflow-y-auto">
+    <div className={cn("w-80 bg-[#252525] border-l border-gray-700 overflow-y-auto", className)}>
       <div className="flex flex-col">
         {sections.map((section) => {
           const isOpen = openPanelSections.has(section.id);

@@ -26,6 +26,7 @@ export function Canvas() {
   const [isCropping, setIsCropping] = useState(false);
   const [copiedElement, setCopiedElement] = useState<{ type: 'text' | 'layer', data: any } | null>(null);
   const [isImageLoaded, setIsImageLoaded] = useState(false);
+  const [lastTouchDistance, setLastTouchDistance] = useState<number | null>(null);
 
   const {
     image,
@@ -535,15 +536,30 @@ export function Canvas() {
   }, [image, adjustments, textBoxes, layers, cropMode, cropRect, applyFilters, tool, selectedLayerId, selectedElement, applySharpen, isImageLoaded]);
 
   // Get mouse position relative to canvas
-  const getCanvasCoordinates = useCallback((e: React.MouseEvent) => {
+  const getCanvasCoordinates = useCallback((e: React.MouseEvent | React.TouchEvent | { clientX: number, clientY: number }) => {
     if (!canvasRef.current || !containerRef.current) return { x: 0, y: 0 };
     
     const canvas = canvasRef.current;
     const canvasRect = canvas.getBoundingClientRect();
     
+    // Get mouse/touch position
+    let clientX, clientY;
+    if ('touches' in e && e.touches && e.touches.length > 0) {
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
+    } else if ('changedTouches' in e && e.changedTouches && e.changedTouches.length > 0) {
+      clientX = e.changedTouches[0].clientX;
+      clientY = e.changedTouches[0].clientY;
+    } else {
+      // @ts-ignore
+      clientX = e.clientX;
+      // @ts-ignore
+      clientY = e.clientY;
+    }
+    
     // Get mouse position relative to canvas element (accounts for CSS scaling)
-    const mouseX = e.clientX - canvasRect.left;
-    const mouseY = e.clientY - canvasRect.top;
+    const mouseX = clientX - canvasRect.left;
+    const mouseY = clientY - canvasRect.top;
     
     // Calculate the ratio between canvas internal size and rendered size
     // This accounts for CSS scaling (maxWidth/maxHeight: 100%)
@@ -1019,6 +1035,88 @@ export function Canvas() {
     }
   }, [image]);
 
+  // Touch handlers
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      setLastTouchDistance(dist);
+      return;
+    }
+
+    if (e.touches.length === 1) {
+      const touch = e.touches[0];
+      // Simulate mouse down
+      handleMouseDown({
+        ...touch,
+        button: 0,
+        preventDefault: () => {},
+        stopPropagation: () => {},
+        target: e.target,
+        currentTarget: e.currentTarget,
+        nativeEvent: e.nativeEvent,
+        persist: () => {},
+        isDefaultPrevented: () => false,
+        isPropagationStopped: () => false,
+        bubbles: true,
+        cancelable: true,
+        defaultPrevented: false,
+        eventPhase: 0,
+        isTrusted: true,
+        timeStamp: Date.now(),
+        type: 'mousedown',
+      } as unknown as React.MouseEvent);
+    }
+  }, [handleMouseDown]);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      
+      if (lastTouchDistance !== null) {
+        const delta = dist / lastTouchDistance;
+        const newZoom = Math.max(10, Math.min(500, zoom * delta));
+        useEditorStore.getState().setZoom(newZoom);
+      }
+      
+      setLastTouchDistance(dist);
+      return;
+    }
+
+    if (e.touches.length === 1) {
+      const touch = e.touches[0];
+      handleMouseMove({
+        ...touch,
+        button: 0,
+        preventDefault: () => {},
+        stopPropagation: () => {},
+        target: e.target,
+        currentTarget: e.currentTarget,
+        nativeEvent: e.nativeEvent,
+        persist: () => {},
+        isDefaultPrevented: () => false,
+        isPropagationStopped: () => false,
+        bubbles: true,
+        cancelable: true,
+        defaultPrevented: false,
+        eventPhase: 0,
+        isTrusted: true,
+        timeStamp: Date.now(),
+        type: 'mousemove',
+      } as unknown as React.MouseEvent);
+    }
+  }, [zoom, lastTouchDistance, handleMouseMove]);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    setLastTouchDistance(null);
+    handleMouseUp();
+  }, [handleMouseUp]);
+
   if (!image || !isImageLoaded) return null;
 
   const scale = zoom / 100;
@@ -1053,6 +1151,7 @@ export function Canvas() {
       }`}
       style={{
         cursor,
+        touchAction: 'none',
         backgroundColor: canvasContainerBg,
         backgroundImage: settings.canvasBackground === 'checkered' 
           ? `linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)`
@@ -1064,6 +1163,9 @@ export function Canvas() {
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
     >
       {/* Rulers */}
       {showRulers && (

@@ -2,10 +2,12 @@ import { LeftToolbar } from './components/LeftToolbar';
 import { Canvas } from './components/CanvasEnhanced';
 import { RightControlPanel } from './components/RightControlPanel';
 import { TopBar } from './components/TopBar';
+import { MobileToolbar } from './components/MobileToolbar';
 import { Toaster } from 'sonner';
 import { UploadZone } from './components/UploadZone';
 import { useEditorStore } from './store/editorStore';
 import { useState, useCallback, useEffect } from 'react';
+import { useIsMobile } from './components/ui/use-mobile';
 import './styles/globals.css';
 import { getTranslation } from './utils/translations';
 
@@ -25,6 +27,7 @@ export default function App() {
         saveSnapshot,
     } = useEditorStore();
 
+    const isMobile = useIsMobile();
     const [showUpload, setShowUpload] = useState(true);
 
     const handleImageUpload = useCallback(
@@ -186,10 +189,13 @@ export default function App() {
     return (
         <div className="w-full h-screen bg-[#1a1a1a] flex flex-col overflow-hidden">
             <TopBar onReplace={() => setShowUpload(true)} />
-            <div className="flex flex-1 overflow-hidden">
-                <LeftToolbar />
-                <Canvas />
-                <RightControlPanel />
+            <div className="flex flex-1 overflow-hidden relative">
+                {!isMobile && <LeftToolbar />}
+                <div className={`flex-1 relative overflow-hidden flex flex-col ${isMobile ? 'pb-16' : ''}`}>
+                    <Canvas />
+                </div>
+                {!isMobile && <RightControlPanel />}
+                {isMobile && <MobileToolbar />}
             </div>
             <Toaster position="top-right" theme="dark" />
         </div>
