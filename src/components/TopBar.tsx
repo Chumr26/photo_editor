@@ -4,6 +4,7 @@ import { useEditorStore } from '../store/editorStore';
 import { KeyboardShortcuts } from './KeyboardShortcuts';
 import { SettingsModal } from './SettingsModal';
 import { quickExport } from '../utils/exportImage';
+import { useTranslation } from '../hooks/useTranslation';
 
 interface TopBarProps {
   onReplace: () => void;
@@ -13,6 +14,7 @@ export function TopBar({ onReplace }: TopBarProps) {
   const { zoom, setZoom, undo, redo, historyIndex, history, showGrid, toggleGrid, showRulers, toggleRulers, resetToInitialState, image, adjustments, settings, textBoxes } = useEditorStore();
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const { t, language } = useTranslation();
 
   const handleExport = async () => {
     if (!image) return;
@@ -23,7 +25,8 @@ export function TopBar({ onReplace }: TopBarProps) {
         adjustments,
         settings.defaultExportFormat,
         settings.exportQuality,
-        textBoxes
+        textBoxes,
+        language as any
       );
     } catch (error) {
       console.error('Export failed:', error);
@@ -38,19 +41,19 @@ export function TopBar({ onReplace }: TopBarProps) {
           <button
             onClick={onReplace}
             className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded flex items-center gap-2 transition-colors text-sm"
-            title="Thay ảnh (Upload new image)"
+            title={t('topbar.replaceImage.tooltip')}
           >
             <Upload className="w-4 h-4" />
-            <span>Thay ảnh</span>
+            <span>{t('topbar.replaceImage')}</span>
           </button>
 
           <button
             onClick={resetToInitialState}
             className="px-3 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded flex items-center gap-2 transition-colors text-sm"
-            title="Đặt lại về trạng thái ban đầu (Reset to initial state)"
+            title={t('topbar.reset.tooltip')}
           >
             <RotateCcw className="w-4 h-4" />
-            <span>Đặt lại</span>
+            <span>{t('topbar.reset')}</span>
           </button>
 
           <div className="w-px h-6 bg-gray-700" />
@@ -58,7 +61,7 @@ export function TopBar({ onReplace }: TopBarProps) {
           <button
             onClick={toggleGrid}
             className={`p-2 rounded transition-colors ${showGrid ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700'}`}
-            title="Lưới (Grid) - G"
+            title={t('topbar.grid.tooltip')}
           >
             <Grid3x3 className="w-5 h-5" />
           </button>
@@ -66,7 +69,7 @@ export function TopBar({ onReplace }: TopBarProps) {
           <button
             onClick={toggleRulers}
             className={`p-2 rounded transition-colors ${showRulers ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700'}`}
-            title="Thước (Rulers) - R"
+            title={t('topbar.rulers.tooltip')}
           >
             <Ruler className="w-5 h-5" />
           </button>
@@ -78,7 +81,7 @@ export function TopBar({ onReplace }: TopBarProps) {
             onClick={undo}
             disabled={historyIndex <= 0}
             className="p-2 hover:bg-gray-700 text-gray-300 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-            title="Hoàn tác (Undo) - Ctrl/Cmd+Z"
+            title={t('topbar.undo.tooltip')}
           >
             <Undo className="w-5 h-5" />
           </button>
@@ -87,7 +90,7 @@ export function TopBar({ onReplace }: TopBarProps) {
             onClick={redo}
             disabled={historyIndex >= history.length - 1}
             className="p-2 hover:bg-gray-700 text-gray-300 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-            title="Làm lại (Redo) - Ctrl/Cmd+Shift+Z"
+            title={t('topbar.redo.tooltip')}
           >
             <Redo className="w-5 h-5" />
           </button>
@@ -97,7 +100,7 @@ export function TopBar({ onReplace }: TopBarProps) {
           <button
             onClick={() => setZoom(Math.max(zoom / 1.2, 10))}
             className="p-2 hover:bg-gray-700 text-gray-300 rounded transition-colors"
-            title="Thu nhỏ (Zoom out) - Ctrl/Cmd+-"
+            title={t('topbar.zoomOut.tooltip')}
           >
             <ZoomOut className="w-5 h-5" />
           </button>
@@ -105,7 +108,7 @@ export function TopBar({ onReplace }: TopBarProps) {
           <button
             onClick={() => setZoom(Math.min(zoom * 1.2, 500))}
             className="p-2 hover:bg-gray-700 text-gray-300 rounded transition-colors"
-            title="Phóng to (Zoom in) - Ctrl/Cmd++"
+            title={t('topbar.zoomIn.tooltip')}
           >
             <ZoomIn className="w-5 h-5" />
           </button>
@@ -113,7 +116,7 @@ export function TopBar({ onReplace }: TopBarProps) {
           <button
             onClick={() => setZoom(100)}
             className="p-2 hover:bg-gray-700 text-gray-300 rounded transition-colors"
-            title="Phù hợp màn hình (Fit to screen) - Ctrl/Cmd+0"
+            title={t('topbar.fitScreen.tooltip')}
           >
             <Maximize2 className="w-5 h-5" />
           </button>
@@ -124,16 +127,16 @@ export function TopBar({ onReplace }: TopBarProps) {
           <button
             onClick={handleExport}
             className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded flex items-center gap-2 transition-colors"
-            title="Tải ảnh về (Download/Export)"
+            title={t('topbar.download.tooltip')}
           >
             <Download className="w-4 h-4" />
-            <span>Tải về</span>
+            <span>{t('topbar.download')}</span>
           </button>
 
           <button
             onClick={() => setShowShortcuts(true)}
             className="p-2 hover:bg-gray-700 text-gray-300 rounded transition-colors"
-            title="Phím tắt (Keyboard Shortcuts)"
+            title={t('topbar.shortcuts.tooltip')}
           >
             <Keyboard className="w-5 h-5" />
           </button>
@@ -141,7 +144,7 @@ export function TopBar({ onReplace }: TopBarProps) {
           <button
             onClick={() => setShowSettings(true)}
             className="p-2 hover:bg-gray-700 text-gray-300 rounded transition-colors"
-            title="Cài đặt (Settings)"
+            title={t('topbar.settings.tooltip')}
           >
             <Settings className="w-5 h-5" />
           </button>

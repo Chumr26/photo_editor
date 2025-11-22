@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { Upload, Image } from 'lucide-react';
+import { useTranslation } from '../hooks/useTranslation';
 
 interface UploadZoneProps {
   onUpload: (file: File) => void;
@@ -7,6 +8,7 @@ interface UploadZoneProps {
 
 export function UploadZone({ onUpload }: UploadZoneProps) {
   const [isDragging, setIsDragging] = useState(false);
+  const { t } = useTranslation();
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
@@ -68,15 +70,15 @@ export function UploadZone({ onUpload }: UploadZoneProps) {
 
         <div className="text-center">
           <h2 className="text-gray-200 mb-2">
-            Kéo thả ảnh vào đây
+            {t('upload.dragDrop')}
           </h2>
           <p className="text-gray-400 text-sm">
-            hoặc nhấn nút bên dưới để chọn ảnh
+            {t('upload.or')}
           </p>
         </div>
 
         <label className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg cursor-pointer transition-colors">
-          <span>Chọn ảnh</span>
+          <span>{t('upload.browse')}</span>
           <input
             type="file"
             accept="image/jpeg,image/png,image/webp,image/svg+xml"
@@ -86,8 +88,8 @@ export function UploadZone({ onUpload }: UploadZoneProps) {
         </label>
 
         <div className="text-center text-xs text-gray-500">
-          <p>Hỗ trợ: JPG, PNG, WebP, SVG</p>
-          <p>Kích thước tối đa: 20MB</p>
+          <p>{t('upload.supported')}: JPG, PNG, WebP, SVG</p>
+          <p>{t('upload.maxSize')}: 20MB</p>
         </div>
       </div>
     </div>

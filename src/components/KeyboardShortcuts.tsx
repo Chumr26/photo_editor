@@ -1,29 +1,32 @@
 import { X } from 'lucide-react';
+import { useTranslation } from '../hooks/useTranslation';
 
 interface KeyboardShortcutsProps {
   onClose: () => void;
 }
 
 export function KeyboardShortcuts({ onClose }: KeyboardShortcutsProps) {
+  const { t } = useTranslation();
+  
   const shortcuts = [
-    { key: 'Ctrl/Cmd + Z', action: 'Hoàn tác (Undo)' },
-    { key: 'Ctrl/Cmd + Shift + Z', action: 'Làm lại (Redo)' },
-    { key: 'Ctrl/Cmd + +', action: 'Phóng to (Zoom In)' },
-    { key: 'Ctrl/Cmd + -', action: 'Thu nhỏ (Zoom Out)' },
-    { key: 'Ctrl/Cmd + Wheel', action: 'Phóng to/Thu nhỏ (Zoom In/Out)' },
-    { key: 'Ctrl/Cmd + 0', action: 'Vừa màn hình (Fit to Screen)' },
-    { key: 'Ctrl/Cmd + 1', action: 'Kích thước thực (Actual Size)' },
-    { key: 'Space + Drag', action: 'Di chuyển canvas (Pan)' },
-    { key: 'V', action: 'Công cụ di chuyển (Move Tool)' },
-    { key: 'C', action: 'Công cụ cắt (Crop Tool)' },
-    { key: 'T', action: 'Công cụ chữ (Text Tool)' },
-    { key: 'I', action: 'Chèn ảnh (Insert Image)' },
-    { key: 'B', action: 'Cọ vẽ (Brush Tool)' },
-    { key: 'L', action: 'Bật/tắt Lớp (Toggle Layers)' },
-    { key: 'H', action: 'Bật/tắt Lịch sử (Toggle History)' },
-    { key: 'G', action: 'Bật/tắt Lưới (Toggle Grid)' },
-    { key: 'R', action: 'Bật/tắt Thước (Toggle Rulers)' },
-    { key: 'P', action: 'Bật/tắt Bộ lọc (Toggle Presets)' },
+    { key: 'Ctrl/Cmd + Z', action: t('shortcuts.undo') },
+    { key: 'Ctrl/Cmd + Shift + Z', action: t('shortcuts.redo') },
+    { key: 'Ctrl/Cmd + +', action: t('shortcuts.zoomIn') },
+    { key: 'Ctrl/Cmd + -', action: t('shortcuts.zoomOut') },
+    { key: 'Ctrl/Cmd + Wheel', action: t('shortcuts.zoomWheel') },
+    { key: 'Ctrl/Cmd + 0', action: t('shortcuts.fitScreen') },
+    { key: 'Ctrl/Cmd + 1', action: t('shortcuts.actualSize') },
+    { key: 'Space + Drag', action: t('shortcuts.pan') },
+    { key: 'V', action: t('shortcuts.moveTool') },
+    { key: 'C', action: t('shortcuts.cropTool') },
+    { key: 'T', action: t('shortcuts.textTool') },
+    { key: 'I', action: t('shortcuts.insertImage') },
+    { key: 'B', action: t('shortcuts.brushTool') },
+    { key: 'L', action: t('shortcuts.toggleLayers') },
+    { key: 'H', action: t('shortcuts.toggleHistory') },
+    { key: 'G', action: t('shortcuts.toggleGrid') },
+    { key: 'R', action: t('shortcuts.toggleRulers') },
+    { key: 'P', action: t('shortcuts.togglePresets') },
   ];
 
   return (
@@ -31,7 +34,7 @@ export function KeyboardShortcuts({ onClose }: KeyboardShortcutsProps) {
       <div className="bg-[#2a2a2a] rounded-lg max-w-2xl w-full max-h-[80vh] overflow-y-auto">
         <div className="sticky top-0 bg-[#2a2a2a] border-b border-gray-700 p-4 flex items-center justify-between">
           <h2 className="text-gray-200">
-            Phím tắt (Keyboard Shortcuts)
+            {t('shortcuts.title')}
           </h2>
           <button
             onClick={onClose}
@@ -58,10 +61,7 @@ export function KeyboardShortcuts({ onClose }: KeyboardShortcutsProps) {
 
           <div className="mt-6 p-4 bg-blue-900/20 border border-blue-700/30 rounded">
             <p className="text-sm text-blue-200">
-              💡 Mẹo: Sử dụng phím tắt để chỉnh sửa nhanh hơn. Bạn có thể tùy chỉnh phím tắt trong Cài đặt.
-            </p>
-            <p className="text-sm text-blue-300/70 mt-1">
-              💡 Tip: Use keyboard shortcuts for faster editing. You can customize shortcuts in Settings.
+              💡 {t('shortcuts.tip')}
             </p>
           </div>
         </div>

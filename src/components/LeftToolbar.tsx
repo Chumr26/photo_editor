@@ -1,9 +1,11 @@
 import { Move, Crop, Type, ImagePlus, Paintbrush } from 'lucide-react';
 import { useEditorStore, Tool } from '../store/editorStore';
 import { toast } from 'sonner';
+import { useTranslation } from '../hooks/useTranslation';
 
 export function LeftToolbar() {
   const { tool, setTool, setCropMode, setCropRect, setActiveToolTab } = useEditorStore();
+  const { t } = useTranslation();
 
   const handleToolClick = (toolId: string) => {
     switch (toolId) {
@@ -20,7 +22,7 @@ export function LeftToolbar() {
         // Activate crop mode
         setCropMode(true);
         setCropRect(null);
-        toast.info('Vẽ khung cắt trên canvas / Draw crop area on canvas');
+        toast.info(t('toast.tool.crop'));
         break;
         
       case 'text':
@@ -29,7 +31,7 @@ export function LeftToolbar() {
         // Disable crop mode if active
         setCropMode(false);
         setCropRect(null);
-        toast.info('Chế độ thêm chữ. Sử dụng bảng bên phải để thêm và quản lý chữ / Text mode. Use right panel to add and manage text');
+        toast.info(t('toast.tool.text'));
         break;
         
       case 'insert':
@@ -38,7 +40,7 @@ export function LeftToolbar() {
         // Disable crop mode if active
         setCropMode(false);
         setCropRect(null);
-        toast.info('Chế độ chèn ảnh. Sử dụng bảng bên phải để tải ảnh lên / Insert mode. Use right panel to upload image');
+        toast.info(t('toast.tool.insert'));
         break;
         
       case 'brush':
@@ -55,11 +57,11 @@ export function LeftToolbar() {
   };
 
   const tools = [
-    { id: 'move', icon: Move, label: 'Di chuyển (Move) - V' },
-    { id: 'crop', icon: Crop, label: 'Cắt (Crop) - C' },
-    { id: 'text', icon: Type, label: 'Chữ (Text) - T' },
-    { id: 'insert', icon: ImagePlus, label: 'Chèn ảnh (Insert) - I' },
-    { id: 'brush', icon: Paintbrush, label: 'Cọ vẽ (Brush) - B' },
+    { id: 'move', icon: Move, label: t('tool.move.tooltip') },
+    { id: 'crop', icon: Crop, label: t('tool.crop.tooltip') },
+    { id: 'text', icon: Type, label: t('tool.text.tooltip') },
+    { id: 'insert', icon: ImagePlus, label: t('tool.insert.tooltip') },
+    { id: 'brush', icon: Paintbrush, label: t('tool.brush.tooltip') },
   ] as const;
 
   return (

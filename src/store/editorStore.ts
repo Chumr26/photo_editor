@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { getTranslation, type Language } from '../utils/translations';
 
 export type Tool =
   | 'move'
@@ -237,6 +238,54 @@ const defaultBrushSettings: BrushSettings = {
   opacity: 1,
   hardness: 100,
   color: '#000000',
+};
+
+// LocalStorage keys
+const SETTINGS_STORAGE_KEY = 'photo-editor-settings';
+
+// Default settings
+const defaultSettings: AppSettings = {
+  language: 'vi',
+  autoSave: true,
+  autoSaveInterval: 300,
+  defaultExportFormat: 'png',
+  exportQuality: 90,
+  showGrid: false,
+  showRulers: false,
+  gridSize: 10,
+  canvasBackground: 'light',
+  maxHistoryStates: 100,
+};
+
+// Load settings from localStorage
+const loadSettings = (): AppSettings => {
+  try {
+    const stored = localStorage.getItem(SETTINGS_STORAGE_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      // Merge with defaults to ensure all fields exist
+      return { ...defaultSettings, ...parsed };
+    }
+  } catch (error) {
+    console.error('Failed to load settings from localStorage:', error);
+  }
+  return defaultSettings;
+};
+
+// Save settings to localStorage
+const saveSettings = (settings: AppSettings) => {
+  try {
+    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+  } catch (error) {
+    console.error('Failed to save settings to localStorage:', error);
+  }
+};
+
+// Helper function to get translation in store context
+const getStoreTranslation = (key: string): string => {
+  // Access the store to get current language setting
+  const language = useEditorStore.getState().settings.language;
+  return getTranslation(key, language as Language);
 };
 
 export const useEditorStore = create<EditorState>((set, get) => ({
@@ -487,7 +536,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     if (Math.abs(cropRect.width) < 10 || Math.abs(cropRect.height) < 10) {
       // Import toast dynamically since we're in store
       import('sonner').then(({ toast }) => {
-        toast.error('Vùng cắt quá nhỏ / Crop area too small');
+        toast.error(getStoreTranslation('toast.crop.tooSmall'));
       });
       return;
     }
@@ -533,7 +582,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       
       // Show success message
       import('sonner').then(({ toast }) => {
-        toast.success('Đã cắt ảnh thành công / Image cropped successfully');
+        toast.success(getStoreTranslation('toast.crop.success'));
       });
     };
     img.src = image.src;
@@ -578,7 +627,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     if (width < 10 || height < 10) {
       // Import toast dynamically since we're in store
       import('sonner').then(({ toast }) => {
-        toast.error('Kích thước mới quá nhỏ / New size too small');
+        toast.error(getStoreTranslation('toast.resize.tooSmall'));
       });
       return;
     }
@@ -622,7 +671,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       
       // Show success message
       import('sonner').then(({ toast }) => {
-        toast.success('Đã thay đổi kích thước ảnh thành công / Image resized successfully');
+        toast.success(getStoreTranslation('toast.resize.success'));
       });
     };
     img.src = image.src;
@@ -682,7 +731,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       
       // Show success message
       import('sonner').then(({ toast }) => {
-        toast.success('Đã xoay ảnh thành công / Image rotated successfully');
+        toast.success(getStoreTranslation('toast.rotate.success'));
       });
     };
     img.src = image.src;
@@ -727,7 +776,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       
       // Show success message
       import('sonner').then(({ toast }) => {
-        toast.success('Đã lật ảnh ngang thành công / Image flipped horizontally successfully');
+        toast.success(getStoreTranslation('toast.flip.horizontal'));
       });
     };
     img.src = image.src;
@@ -772,7 +821,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       
       // Show success message
       import('sonner').then(({ toast }) => {
-        toast.success('Đã lật ảnh dọc thành công / Image flipped vertically successfully');
+        toast.success(getStoreTranslation('toast.flip.vertical'));
       });
     };
     img.src = image.src;
@@ -830,41 +879,23 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       
       // Show success message
       import('sonner').then(({ toast }) => {
-        toast.success('Đã xoay ảnh thành công / Image rotated successfully');
+        toast.success(getStoreTranslation('toast.rotate.success'));
       });
     };
     img.src = image.src;
   },
   
   // Settings
-  settings: {
-    language: 'vi',
-    autoSave: true,
-    autoSaveInterval: 300,
-    defaultExportFormat: 'png',
-    exportQuality: 90,
-    showGrid: false,
-    showRulers: false,
-    gridSize: 10,
-    canvasBackground: 'light',
-    maxHistoryStates: 100,
+  settings: loadSettings(),
+  updateSettings: (updates) => {
+    const newSettings = { ...get().settings, ...updates };
+    set({ settings: newSettings });
+    saveSettings(newSettings);
   },
-  updateSettings: (updates) =>
-    set((state) => ({
-      settings: { ...state.settings, ...updates },
-    })),
-  resetSettings: () => set({ settings: {
-    language: 'vi',
-    autoSave: true,
-    autoSaveInterval: 300,
-    defaultExportFormat: 'png',
-    exportQuality: 90,
-    showGrid: false,
-    showRulers: false,
-    gridSize: 10,
-    canvasBackground: 'light',
-    maxHistoryStates: 100,
-  } }),
+  resetSettings: () => {
+    set({ settings: defaultSettings });
+    saveSettings(defaultSettings);
+  },
   
   // Right panel sections
   openPanelSections: new Set(),
@@ -916,7 +947,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     
     // Show success message
     import('sonner').then(({ toast }) => {
-      toast.success('Đã đặt lại ảnh về trạng thái ban đầu / Image reset to initial state');
+      toast.success(getStoreTranslation('toast.reset.success'));
     });
   },
 }));

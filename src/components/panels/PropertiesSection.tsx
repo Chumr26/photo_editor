@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useEditorStore } from '../../store/editorStore';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
+import { useTranslation } from '../../hooks/useTranslation';
 
 export function PropertiesSection() {
   const { image, resizeImage } = useEditorStore();
+  const { t } = useTranslation();
   const [width, setWidth] = useState(0);
   const [height, setHeight] = useState(0);
   const [keepAspectRatio, setKeepAspectRatio] = useState(true);
@@ -87,12 +89,12 @@ export function PropertiesSection() {
 
   const handleApplyResize = () => {
     if (width <= 0 || height <= 0) {
-      toast.error('Kích thước không hợp lệ / Invalid dimensions');
+      toast.error(t('toast.invalidDimensions'));
       return;
     }
     
     if (width === image.width && height === image.height) {
-      toast.info('Kích thước không thay đổi / No size change');
+      toast.info(t('toast.noSizeChange'));
       return;
     }
     
@@ -104,26 +106,26 @@ export function PropertiesSection() {
       {/* Image info */}
       <div className="space-y-2">
         <div className="flex justify-between text-sm">
-          <span className="text-gray-400">Tên tệp:</span>
+          <span className="text-gray-400">{t('properties.filename')}:</span>
           <span className="text-gray-200 truncate ml-2" title={image.filename}>
             {image.filename}
           </span>
         </div>
 
         <div className="flex justify-between text-sm">
-          <span className="text-gray-400">Kích thước:</span>
+          <span className="text-gray-400">{t('properties.dimensions')}:</span>
           <span className="text-gray-200">
             {image.width} × {image.height} px
           </span>
         </div>
 
         <div className="flex justify-between text-sm">
-          <span className="text-gray-400">Dung lượng:</span>
+          <span className="text-gray-400">{t('properties.filesize')}:</span>
           <span className="text-gray-200">{formatFileSize(image.fileSize)}</span>
         </div>
 
         <div className="flex justify-between text-sm">
-          <span className="text-gray-400">Tỷ lệ:</span>
+          <span className="text-gray-400">{t('properties.aspectRatio')}:</span>
           <span className="text-gray-200">{aspectRatio.toFixed(2)}:1</span>
         </div>
       </div>
@@ -132,11 +134,11 @@ export function PropertiesSection() {
 
       {/* Resize controls */}
       <div className="space-y-3">
-        <h4 className="text-sm text-gray-300">Thay đổi kích thước (Resize)</h4>
+        <h4 className="text-sm text-gray-300">{t('properties.resizeTitle')}</h4>
 
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <label className="text-xs text-gray-400 block mb-1">Chiều rộng (Width)</label>
+            <label className="text-xs text-gray-400 block mb-1">{t('properties.width')}</label>
             <input
               type="number"
               value={width}
@@ -145,7 +147,7 @@ export function PropertiesSection() {
             />
           </div>
           <div>
-            <label className="text-xs text-gray-400 block mb-1">Chiều cao (Height)</label>
+            <label className="text-xs text-gray-400 block mb-1">{t('properties.height')}</label>
             <input
               type="number"
               value={height}
@@ -162,16 +164,16 @@ export function PropertiesSection() {
             onChange={(e) => setKeepAspectRatio(e.target.checked)}
             className="w-4 h-4 rounded border-gray-600 bg-gray-800 cursor-pointer"
           />
-          <span>🔒 Giữ tỷ lệ (Keep aspect ratio)</span>
+          <span>🔒 {t('properties.keepAspectRatio')}</span>
         </label>
 
         <div>
-          <label className="text-xs text-gray-400 block mb-2">Kích thước mẫu (Presets)</label>
+          <label className="text-xs text-gray-400 block mb-2">{t('properties.presets')}</label>
           <select 
             onChange={(e) => handlePresetChange(e.target.value)}
             className="w-full px-2 py-1.5 bg-gray-800 border border-gray-700 rounded text-sm text-gray-200 focus:border-blue-500 focus:outline-none cursor-pointer"
           >
-            <option value="">Tùy chỉnh (Custom)</option>
+            <option value="">{t('properties.custom')}</option>
             <optgroup label="Social Media">
               <option value="instagram-square">Instagram (1:1) - 1080×1080</option>
               <option value="instagram-story">Instagram Story (9:16) - 1080×1920</option>
@@ -189,7 +191,7 @@ export function PropertiesSection() {
 
         {(width !== image.width || height !== image.height) && (
           <div className="text-xs text-blue-400 bg-blue-950/30 p-2 rounded border border-blue-800">
-            📊 Thay đổi: {image.width}×{image.height} → {width}×{height}
+            📊 {t('properties.changeInfo')}: {image.width}×{image.height} → {width}×{height}
           </div>
         )}
 
@@ -198,7 +200,7 @@ export function PropertiesSection() {
           disabled={width === image.width && height === image.height}
           className="w-full px-3 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white rounded text-sm transition-colors"
         >
-          ✅ Áp dụng (Apply Resize)
+          ✅ {t('properties.applyResize')}
         </button>
 
         <button 
@@ -209,7 +211,7 @@ export function PropertiesSection() {
           }}
           className="w-full px-3 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded text-sm transition-colors"
         >
-          🔄 Đặt lại (Reset)
+          🔄 {t('properties.reset')}
         </button>
       </div>
     </div>

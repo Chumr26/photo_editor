@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { Eye, EyeOff, Lock, Unlock, Trash2, Plus, Image, GripVertical } from 'lucide-react';
 import { useEditorStore } from '../../store/editorStore';
+import { useTranslation } from '../../hooks/useTranslation';
 
 export function LayersSection() {
+  const { t } = useTranslation();
   const { layers, selectedLayerId, selectLayer, updateLayer, deleteLayer, addLayer, reorderLayers } =
     useEditorStore();
   const [draggedLayerId, setDraggedLayerId] = useState<string | null>(null);
@@ -19,7 +21,7 @@ export function LayersSection() {
   const handleAddLayer = () => {
     const newLayer = {
       id: `layer-${Date.now()}`,
-      name: `Lớp ${layers.length + 1}`,
+      name: `${t('layers.layer')} ${layers.length + 1}`,
       type: 'image' as const,
       visible: true,
       locked: false,
@@ -30,7 +32,7 @@ export function LayersSection() {
       width: 100,
       height: 100,
       rotation: 0,
-      data: null,
+      data: undefined,
     };
     addLayer(newLayer);
   };
@@ -87,7 +89,7 @@ export function LayersSection() {
         className="w-full px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm transition-colors flex items-center justify-center gap-2"
       >
         <Plus className="w-4 h-4" />
-        <span>Thêm lớp mới (Add Layer)</span>
+        <span>{t('layers.add')}</span>
       </button>
 
       {/* Layer controls */}
@@ -96,7 +98,7 @@ export function LayersSection() {
           <div className="space-y-2">
             <div>
               <label className="text-xs text-gray-400 block mb-1">
-                Độ mờ (Opacity)
+                {t('layers.opacity')}
               </label>
               <input
                 type="range"
@@ -118,7 +120,7 @@ export function LayersSection() {
 
             <div>
               <label className="text-xs text-gray-400 block mb-1">
-                Chế độ hòa trộn (Blend Mode)
+                {t('layers.blendMode')}
               </label>
               <select
                 value={
@@ -157,13 +159,12 @@ export function LayersSection() {
         {layers.length === 0 ? (
           <div className="text-center py-8 text-gray-500 text-sm">
             <Image className="w-12 h-12 mx-auto mb-2 opacity-30" />
-            <p>Chưa có lớp nào</p>
-            <p className="text-xs">(No layers yet)</p>
+            <p>{t('layers.noLayers')}</p>
           </div>
         ) : (
           <>
             <div className="text-xs text-gray-400 mb-2 px-2">
-              💡 Kéo thả để sắp xếp lại / Drag to reorder
+              💡 {t('layers.dragTip')}
             </div>
             {layers.map((layer) => (
               <div
@@ -189,11 +190,11 @@ export function LayersSection() {
               >
                 {/* Drag handle */}
                 {!layer.locked && (
-                  <GripVertical className="w-4 h-4 opacity-50 cursor-grab active:cursor-grabbing flex-shrink-0" />
+                  <GripVertical className="w-4 h-4 opacity-50 cursor-grab active:cursor-grabbing shrink-0" />
                 )}
 
                 {/* Thumbnail */}
-                <div className="w-10 h-10 bg-gray-700 rounded flex items-center justify-center flex-shrink-0">
+                <div className="w-10 h-10 bg-gray-700 rounded flex items-center justify-center shrink-0">
                   {layer.data ? (
                     <img src={layer.data} alt={layer.name} className="w-full h-full object-cover rounded" />
                   ) : (
@@ -211,21 +212,20 @@ export function LayersSection() {
                     onClick={(e) => e.stopPropagation()}
                   />
                   <div className="text-xs opacity-70">
-                    {layer.type === 'image' && 'Ảnh'}
-                    {layer.type === 'text' && 'Chữ'}
-                    {layer.type === 'draw' && 'Vẽ'}
+                    {layer.type === 'image' && t('properties.type.image')}
+                    {layer.type === 'adjustment' && t('properties.type.adjustment')}
                   </div>
                 </div>
 
                 {/* Controls */}
-                <div className="flex items-center gap-1 flex-shrink-0">
+                <div className="flex items-center gap-1 shrink-0">
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       updateLayer(layer.id, { visible: !layer.visible });
                     }}
                     className="p-1 hover:bg-gray-600 rounded"
-                    title={layer.visible ? 'Ẩn (Hide)' : 'Hiện (Show)'}
+                    title={t('layers.visibility')}
                   >
                     {layer.visible ? (
                       <Eye className="w-4 h-4" />
@@ -240,7 +240,7 @@ export function LayersSection() {
                       updateLayer(layer.id, { locked: !layer.locked });
                     }}
                     className="p-1 hover:bg-gray-600 rounded"
-                    title={layer.locked ? 'Mở khóa (Unlock)' : 'Khóa (Lock)'}
+                    title={t('layers.lock')}
                   >
                     {layer.locked ? (
                       <Lock className="w-4 h-4" />
@@ -252,16 +252,12 @@ export function LayersSection() {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (
-                        confirm(
-                          `Xóa lớp "${layer.name}"?\n(Delete layer "${layer.name}"?)`
-                        )
-                      ) {
+                      if (confirm(t('layers.deleteConfirm'))) {
                         deleteLayer(layer.id);
                       }
                     }}
                     className="p-1 hover:bg-red-600 rounded"
-                    title="Xóa (Delete)"
+                    title={t('layers.delete')}
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -278,16 +274,16 @@ export function LayersSection() {
           <div className="h-px bg-gray-700" />
           <div className="grid grid-cols-2 gap-2">
             <button className="px-2 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded text-xs transition-colors">
-              Nhóm lại (Group)
+              {t('layers.group')}
             </button>
             <button className="px-2 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded text-xs transition-colors">
-              Gộp (Merge)
+              {t('layers.merge')}
             </button>
             <button className="px-2 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded text-xs transition-colors">
-              Tạo mặt nạ (Mask)
+              {t('layers.createMask')}
             </button>
             <button className="px-2 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded text-xs transition-colors">
-              Raster hóa (Rasterize)
+              {t('layers.rasterize')}
             </button>
           </div>
         </>
