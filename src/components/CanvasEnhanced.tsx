@@ -27,6 +27,8 @@ export function Canvas() {
   const [copiedElement, setCopiedElement] = useState<{ type: 'text' | 'layer', data: any } | null>(null);
   const [isImageLoaded, setIsImageLoaded] = useState(false);
   const [lastTouchDistance, setLastTouchDistance] = useState<number | null>(null);
+  const [lastTouchCenter, setLastTouchCenter] = useState<{x: number, y: number} | null>(null);
+  const [isTouchPanning, setIsTouchPanning] = useState(false);
 
   const {
     image,
@@ -1037,12 +1039,20 @@ export function Canvas() {
 
   // Touch handlers
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    e.preventDefault();
     if (e.touches.length === 2) {
+      const touch1 = e.touches[0];
+      const touch2 = e.touches[1];
       const dist = Math.hypot(
-        e.touches[0].clientX - e.touches[1].clientX,
-        e.touches[0].clientY - e.touches[1].clientY
+        touch1.clientX - touch2.clientX,
+        touch1.clientY - touch2.clientY
       );
       setLastTouchDistance(dist);
+      
+      const centerX = (touch1.clientX + touch2.clientX) / 2;
+      const centerY = (touch1.clientY + touch2.clientY) / 2;
+      setLastTouchCenter({ x: centerX, y: centerY });
+      setIsTouchPanning(true);
       return;
     }
 
@@ -1051,6 +1061,8 @@ export function Canvas() {
       // Simulate mouse down
       handleMouseDown({
         ...touch,
+        clientX: touch.clientX,
+        clientY: touch.clientY,
         button: 0,
         preventDefault: () => {},
         stopPropagation: () => {},
@@ -1072,19 +1084,33 @@ export function Canvas() {
   }, [handleMouseDown]);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    e.preventDefault();
     if (e.touches.length === 2) {
+      const touch1 = e.touches[0];
+      const touch2 = e.touches[1];
       const dist = Math.hypot(
-        e.touches[0].clientX - e.touches[1].clientX,
-        e.touches[0].clientY - e.touches[1].clientY
+        touch1.clientX - touch2.clientX,
+        touch1.clientY - touch2.clientY
       );
       
       if (lastTouchDistance !== null) {
         const delta = dist / lastTouchDistance;
         const newZoom = Math.max(10, Math.min(500, zoom * delta));
         useEditorStore.getState().setZoom(newZoom);
+        setLastTouchDistance(dist);
       }
       
-      setLastTouchDistance(dist);
+      if (lastTouchCenter !== null) {
+        const centerX = (touch1.clientX + touch2.clientX) / 2;
+        const centerY = (touch1.clientY + touch2.clientY) / 2;
+        const deltaX = centerX - lastTouchCenter.x;
+        const deltaY = centerY - lastTouchCenter.y;
+        
+        if (Math.abs(deltaX) > 1 || Math.abs(deltaY) > 1) {
+          setPan(panX + deltaX, panY + deltaY);
+          setLastTouchCenter({ x: centerX, y: centerY });
+        }
+      }
       return;
     }
 
@@ -1092,6 +1118,8 @@ export function Canvas() {
       const touch = e.touches[0];
       handleMouseMove({
         ...touch,
+        clientX: touch.clientX,
+        clientY: touch.clientY,
         button: 0,
         preventDefault: () => {},
         stopPropagation: () => {},
@@ -1113,7 +1141,10 @@ export function Canvas() {
   }, [zoom, lastTouchDistance, handleMouseMove]);
 
   const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    e.preventDefault();
     setLastTouchDistance(null);
+    setLastTouchCenter(null);
+    setIsTouchPanning(false);
     handleMouseUp();
   }, [handleMouseUp]);
 
@@ -1134,6 +1165,7 @@ export function Canvas() {
     else if (dragHandle === 'tl' || dragHandle === 'br') cursor = 'nwse-resize';
     else if (dragHandle === 'tr' || dragHandle === 'bl') cursor = 'nesw-resize';
   }
+
   
   // Apply canvas background from settings
   let canvasContainerBg = '#1e1e1e'; // default dark
