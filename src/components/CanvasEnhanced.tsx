@@ -12,6 +12,7 @@ export function Canvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const drawingCanvasRef = useRef<HTMLCanvasElement>(null);
+  const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
   const imageRef = useRef<HTMLImageElement>(new Image());
   const lastPosRef = useRef({ x: 0, y: 0 });
   const isDrawingRef = useRef(false);
@@ -328,51 +329,6 @@ export function Canvas() {
             ctx.drawImage(layerImg, -layer.width / 2, -layer.height / 2, layer.width, layer.height);
             ctx.rotate((-layer.rotation * Math.PI) / 180);
             ctx.translate(-centerX, -centerY);
-            
-            // Draw selection outline if selected
-            if (selectedElement?.type === 'layer' && selectedElement.id === layer.id) {
-              ctx.strokeStyle = '#3b82f6';
-              ctx.lineWidth = 2;
-              ctx.strokeRect(layer.x, layer.y, layer.width, layer.height);
-              
-              // Draw corner resize handles
-              const handleSize = 10;
-              const handles = [
-                { x: layer.x, y: layer.y, label: 'tl' },
-                { x: layer.x + layer.width, y: layer.y, label: 'tr' },
-                { x: layer.x, y: layer.y + layer.height, label: 'bl' },
-                { x: layer.x + layer.width, y: layer.y + layer.height, label: 'br' },
-              ];
-              
-              ctx.fillStyle = '#fff';
-              ctx.strokeStyle = '#3b82f6';
-              ctx.lineWidth = 2;
-              handles.forEach(handle => {
-                ctx.fillRect(handle.x - handleSize/2, handle.y - handleSize/2, handleSize, handleSize);
-                ctx.strokeRect(handle.x - handleSize/2, handle.y - handleSize/2, handleSize, handleSize);
-              });
-              
-              // Draw rotation handle
-              const rotateHandleY = layer.y - 30;
-              const rotateHandleX = layer.x + layer.width / 2;
-              ctx.beginPath();
-              ctx.arc(rotateHandleX, rotateHandleY, 8, 0, Math.PI * 2);
-              ctx.fillStyle = '#fff';
-              ctx.fill();
-              ctx.strokeStyle = '#3b82f6';
-              ctx.lineWidth = 2;
-              ctx.stroke();
-              
-              // Draw line from rotation handle to top edge
-              ctx.beginPath();
-              ctx.moveTo(rotateHandleX, rotateHandleY + 8);
-              ctx.lineTo(rotateHandleX, layer.y);
-              ctx.strokeStyle = '#3b82f6';
-              ctx.lineWidth = 1;
-              ctx.setLineDash([5, 5]);
-              ctx.stroke();
-              ctx.setLineDash([]);
-            }
           }
         }
 
@@ -393,92 +349,8 @@ export function Canvas() {
           ctx.fillText(line, textBox.x, textBox.y + (i * textBox.fontSize * 1.2));
         });
         
-        // Draw text bounding box if selected or move tool is active
-        if (tool === 'move' || tool === 'text' || (selectedElement?.type === 'text' && selectedElement.id === textBox.id)) {
-          const metrics = ctx.measureText(textBox.text);
-          const width = metrics.width;
-          const height = textBox.fontSize * lines.length * 1.2;
-          
-          const isSelected = selectedElement?.type === 'text' && selectedElement.id === textBox.id;
-          
-          ctx.strokeStyle = isSelected ? '#3b82f6' : '#3b82f688';
-          ctx.lineWidth = isSelected ? 2 : 1;
-          ctx.setLineDash(isSelected ? [] : [5, 5]);
-          ctx.strokeRect(textBox.x - 5, textBox.y - 5, width + 10, height + 10);
-          ctx.setLineDash([]);
-          
-          // Draw resize handles for selected text
-          if (isSelected) {
-            const handleSize = 10;
-            const handles = [
-              { x: textBox.x - 5, y: textBox.y - 5 },
-              { x: textBox.x + width + 5, y: textBox.y - 5 },
-              { x: textBox.x - 5, y: textBox.y + height + 5 },
-              { x: textBox.x + width + 5, y: textBox.y + height + 5 },
-            ];
-            
-            ctx.fillStyle = '#fff';
-            ctx.strokeStyle = '#3b82f6';
-            ctx.lineWidth = 2;
-            handles.forEach(handle => {
-              ctx.fillRect(handle.x - handleSize/2, handle.y - handleSize/2, handleSize, handleSize);
-              ctx.strokeRect(handle.x - handleSize/2, handle.y - handleSize/2, handleSize, handleSize);
-            });
-          }
-        }
-        
         ctx.restore();
       });
-
-      // Draw crop overlay
-      if (cropMode && cropRect) {
-        ctx.save();
-        
-        // Draw semi-transparent overlay in 4 rectangles around the crop area
-        // This way we don't clear the image inside the crop area
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-        
-        const cropX = Math.min(cropRect.x, cropRect.x + cropRect.width);
-        const cropY = Math.min(cropRect.y, cropRect.y + cropRect.height);
-        const cropW = Math.abs(cropRect.width);
-        const cropH = Math.abs(cropRect.height);
-        
-        // Top rectangle
-        ctx.fillRect(0, 0, canvas.width, cropY);
-        
-        // Bottom rectangle
-        ctx.fillRect(0, cropY + cropH, canvas.width, canvas.height - (cropY + cropH));
-        
-        // Left rectangle
-        ctx.fillRect(0, cropY, cropX, cropH);
-        
-        // Right rectangle
-        ctx.fillRect(cropX + cropW, cropY, canvas.width - (cropX + cropW), cropH);
-        
-        // Crop border
-        ctx.strokeStyle = '#3b82f6';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(cropX, cropY, cropW, cropH);
-        
-        // Crop handles
-        const handleSize = 10;
-        const handles = [
-          { x: cropX, y: cropY },
-          { x: cropX + cropW, y: cropY },
-          { x: cropX, y: cropY + cropH },
-          { x: cropX + cropW, y: cropY + cropH },
-        ];
-        
-        ctx.fillStyle = '#fff';
-        ctx.strokeStyle = '#3b82f6';
-        ctx.lineWidth = 2;
-        handles.forEach(handle => {
-          ctx.fillRect(handle.x - handleSize/2, handle.y - handleSize/2, handleSize, handleSize);
-          ctx.strokeRect(handle.x - handleSize/2, handle.y - handleSize/2, handleSize, handleSize);
-        });
-        
-        ctx.restore();
-      }
 
       // Clear drawing canvas if not drawing
       // This prevents flickering when a new layer is added
@@ -489,7 +361,164 @@ export function Canvas() {
     };
 
     renderCanvas();
-  }, [image, adjustments, textBoxes, layers, cropMode, cropRect, applyFilters, tool, selectedLayerId, selectedElement, applySharpen, isImageLoaded, applyColorBalance, colorBalance]);
+  }, [image, adjustments, textBoxes, layers, applyFilters, applySharpen, isImageLoaded, applyColorBalance, colorBalance]);
+
+  // Overlay rendering (UI, handles, crop)
+  useEffect(() => {
+    if (!overlayCanvasRef.current || !image) return;
+    const canvas = overlayCanvasRef.current;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Clear overlay
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const scale = zoom / 100;
+    const uiScale = 1 / scale;
+    const handleSize = 10 * uiScale;
+    const lineWidth = 2 * uiScale;
+    const dashSize = 5 * uiScale;
+
+    // Draw layer handles
+    layers.forEach(layer => {
+      if (!layer.visible) return;
+      
+      if (selectedElement?.type === 'layer' && selectedElement.id === layer.id) {
+        ctx.save();
+        
+        ctx.strokeStyle = '#3b82f6';
+        ctx.lineWidth = lineWidth;
+        ctx.strokeRect(layer.x, layer.y, layer.width, layer.height);
+        
+        // Draw corner resize handles
+        const handles = [
+          { x: layer.x, y: layer.y, label: 'tl' },
+          { x: layer.x + layer.width, y: layer.y, label: 'tr' },
+          { x: layer.x, y: layer.y + layer.height, label: 'bl' },
+          { x: layer.x + layer.width, y: layer.y + layer.height, label: 'br' },
+        ];
+        
+        ctx.fillStyle = '#fff';
+        ctx.strokeStyle = '#3b82f6';
+        ctx.lineWidth = lineWidth;
+        handles.forEach(handle => {
+          ctx.fillRect(handle.x - handleSize/2, handle.y - handleSize/2, handleSize, handleSize);
+          ctx.strokeRect(handle.x - handleSize/2, handle.y - handleSize/2, handleSize, handleSize);
+        });
+        
+        // Draw rotation handle
+        const rotateHandleY = layer.y - (30 * uiScale);
+        const rotateHandleX = layer.x + layer.width / 2;
+        ctx.beginPath();
+        ctx.arc(rotateHandleX, rotateHandleY, 8 * uiScale, 0, Math.PI * 2);
+        ctx.fillStyle = '#fff';
+        ctx.fill();
+        ctx.strokeStyle = '#3b82f6';
+        ctx.lineWidth = lineWidth;
+        ctx.stroke();
+        
+        // Draw line from rotation handle to top edge
+        ctx.beginPath();
+        ctx.moveTo(rotateHandleX, rotateHandleY + (8 * uiScale));
+        ctx.lineTo(rotateHandleX, layer.y);
+        ctx.strokeStyle = '#3b82f6';
+        ctx.lineWidth = 1 * uiScale;
+        ctx.setLineDash([dashSize, dashSize]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        
+        ctx.restore();
+      }
+    });
+
+    // Draw text box handles
+    textBoxes.forEach((textBox) => {
+      if (tool === 'move' || tool === 'text' || (selectedElement?.type === 'text' && selectedElement.id === textBox.id)) {
+        ctx.save();
+        ctx.font = `${textBox.fontStyle || 'normal'} ${textBox.fontWeight || '400'} ${textBox.fontSize}px ${textBox.fontFamily}`;
+        const metrics = ctx.measureText(textBox.text);
+        const lines = textBox.text.split('\n');
+        const width = metrics.width;
+        const height = textBox.fontSize * lines.length * 1.2;
+        
+        const isSelected = selectedElement?.type === 'text' && selectedElement.id === textBox.id;
+        
+        ctx.strokeStyle = isSelected ? '#3b82f6' : '#3b82f688';
+        ctx.lineWidth = isSelected ? lineWidth : (1 * uiScale);
+        ctx.setLineDash(isSelected ? [] : [dashSize, dashSize]);
+        ctx.strokeRect(textBox.x - 5, textBox.y - 5, width + 10, height + 10);
+        ctx.setLineDash([]);
+        
+        // Draw resize handles for selected text
+        if (isSelected) {
+          const handles = [
+            { x: textBox.x - 5, y: textBox.y - 5 },
+            { x: textBox.x + width + 5, y: textBox.y - 5 },
+            { x: textBox.x - 5, y: textBox.y + height + 5 },
+            { x: textBox.x + width + 5, y: textBox.y + height + 5 },
+          ];
+          
+          ctx.fillStyle = '#fff';
+          ctx.strokeStyle = '#3b82f6';
+          ctx.lineWidth = lineWidth;
+          handles.forEach(handle => {
+            ctx.fillRect(handle.x - handleSize/2, handle.y - handleSize/2, handleSize, handleSize);
+            ctx.strokeRect(handle.x - handleSize/2, handle.y - handleSize/2, handleSize, handleSize);
+          });
+        }
+        ctx.restore();
+      }
+    });
+
+    // Draw crop overlay
+    if (cropMode && cropRect) {
+      ctx.save();
+      
+      // Draw semi-transparent overlay
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+      
+      const cropX = Math.min(cropRect.x, cropRect.x + cropRect.width);
+      const cropY = Math.min(cropRect.y, cropRect.y + cropRect.height);
+      const cropW = Math.abs(cropRect.width);
+      const cropH = Math.abs(cropRect.height);
+      
+      // Top rectangle
+      ctx.fillRect(0, 0, canvas.width, cropY);
+      
+      // Bottom rectangle
+      ctx.fillRect(0, cropY + cropH, canvas.width, canvas.height - (cropY + cropH));
+      
+      // Left rectangle
+      ctx.fillRect(0, cropY, cropX, cropH);
+      
+      // Right rectangle
+      ctx.fillRect(cropX + cropW, cropY, canvas.width - (cropX + cropW), cropH);
+      
+      // Crop border
+      ctx.strokeStyle = '#3b82f6';
+      ctx.lineWidth = lineWidth;
+      ctx.strokeRect(cropX, cropY, cropW, cropH);
+      
+      // Crop handles
+      const handles = [
+        { x: cropX, y: cropY },
+        { x: cropX + cropW, y: cropY },
+        { x: cropX, y: cropY + cropH },
+        { x: cropX + cropW, y: cropY + cropH },
+      ];
+      
+      ctx.fillStyle = '#fff';
+      ctx.strokeStyle = '#3b82f6';
+      ctx.lineWidth = lineWidth;
+      handles.forEach(handle => {
+        ctx.fillRect(handle.x - handleSize/2, handle.y - handleSize/2, handleSize, handleSize);
+        ctx.strokeRect(handle.x - handleSize/2, handle.y - handleSize/2, handleSize, handleSize);
+      });
+      
+      ctx.restore();
+    }
+
+  }, [zoom, layers, textBoxes, selectedElement, cropMode, cropRect, tool, image]);
 
   // Get mouse position relative to canvas
   const getCanvasCoordinates = useCallback((e: React.MouseEvent | React.TouchEvent | { clientX: number, clientY: number }) => {
@@ -568,14 +597,17 @@ export function Canvas() {
 
   // Check if clicking on resize handle or rotation handle
   const getClickedHandle = useCallback((x: number, y: number, bounds: any, isLayer: boolean): DragHandle => {
-    const handleSize = 10;
+    const scale = zoom / 100;
+    const uiScale = 1 / scale;
+    const handleSize = 10 * uiScale; // Visual size
+    const hitThreshold = handleSize; // Hit area is 2x visual size (consistent with previous behavior)
     
     // Check rotation handle for layers
     if (isLayer) {
-      const rotateHandleY = bounds.y - 30;
+      const rotateHandleY = bounds.y - (30 * uiScale);
       const rotateHandleX = bounds.x + bounds.width / 2;
       const distToRotate = Math.sqrt(Math.pow(x - rotateHandleX, 2) + Math.pow(y - rotateHandleY, 2));
-      if (distToRotate <= 8) {
+      if (distToRotate <= (8 * uiScale)) {
         return 'rotate';
       }
     }
@@ -589,8 +621,8 @@ export function Canvas() {
     ];
     
     for (const handle of handles) {
-      if (x >= handle.x - handleSize && x <= handle.x + handleSize &&
-          y >= handle.y - handleSize && y <= handle.y + handleSize) {
+      if (x >= handle.x - hitThreshold && x <= handle.x + hitThreshold &&
+          y >= handle.y - hitThreshold && y <= handle.y + hitThreshold) {
         return handle.type;
       }
     }
@@ -602,7 +634,7 @@ export function Canvas() {
     }
     
     return null;
-  }, []);
+  }, [zoom]);
 
   // Drawing functionality
   const startDrawing = useCallback((e: React.MouseEvent) => {
@@ -998,6 +1030,17 @@ export function Canvas() {
     }
   }, [image]);
 
+  // Setup overlay canvas
+  useEffect(() => {
+    if (!overlayCanvasRef.current || !image) return;
+    
+    const canvas = overlayCanvasRef.current;
+    if (canvas.width !== image.width || canvas.height !== image.height) {
+      canvas.width = image.width;
+      canvas.height = image.height;
+    }
+  }, [image]);
+
   // Touch handlers
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     e.preventDefault();
@@ -1206,10 +1249,6 @@ export function Canvas() {
         <canvas
           ref={canvasRef}
           className="block bg-white"
-          style={{
-            maxWidth: '100%',
-            maxHeight: '100%',
-          }}
         />
         
         <canvas
@@ -1217,10 +1256,13 @@ export function Canvas() {
           className="absolute top-0 left-0 pointer-events-none z-10"
           width={image?.width}
           height={image?.height}
-          style={{
-            maxWidth: '100%',
-            maxHeight: '100%',
-          }}
+        />
+        
+        <canvas
+          ref={overlayCanvasRef}
+          className="absolute top-0 left-0 pointer-events-none z-20"
+          width={image?.width}
+          height={image?.height}
         />
       </div>
 
