@@ -14,6 +14,8 @@ export function Canvas() {
   const imageRef = useRef<HTMLImageElement>(new Image());
   const lastPosRef = useRef({ x: 0, y: 0 });
   const isDrawingRef = useRef(false);
+  const isCroppingRef = useRef(false);
+  const cropStartPosRef = useRef({ x: 0, y: 0 });
   
   const [isDrawing, setIsDrawing] = useState(false);
   const [isPanning, setIsPanning] = useState(false);
@@ -768,6 +770,9 @@ export function Canvas() {
     
     const pos = getCanvasCoordinates(e);
     setIsCropping(true);
+    isCroppingRef.current = true;
+    cropStartPosRef.current = pos;
+    
     setCropRect({
       x: pos.x,
       y: pos.y,
@@ -777,13 +782,14 @@ export function Canvas() {
   }, [cropMode, image, getCanvasCoordinates, setCropRect]);
 
   const handleCropMove = useCallback((e: React.MouseEvent) => {
-    if (!cropMode || !isCropping || !cropRect) return;
+    if (!cropMode || !isCroppingRef.current || !cropRect) return;
     
     const pos = getCanvasCoordinates(e);
+    const startPos = cropStartPosRef.current;
     
     // Calculate width and height from start position to current position
-    let width = pos.x - cropRect.x;
-    let height = pos.y - cropRect.y;
+    let width = pos.x - startPos.x;
+    let height = pos.y - startPos.y;
     
     // Apply aspect ratio if set
     if (cropRect.aspectRatio) {
@@ -792,10 +798,12 @@ export function Canvas() {
     
     setCropRect({
       ...cropRect,
+      x: startPos.x,
+      y: startPos.y,
       width,
       height,
     });
-  }, [cropMode, isCropping, cropRect, getCanvasCoordinates, setCropRect]);
+  }, [cropMode, cropRect, getCanvasCoordinates, setCropRect]);
 
   // Mouse handlers
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -997,6 +1005,7 @@ export function Canvas() {
     setDragHandle(null);
     setElementStartBounds(null);
     setIsCropping(false);
+    isCroppingRef.current = false;
   }, [stopDrawing]);
 
   // Wheel zoom - using native event listener to support non-passive behavior
