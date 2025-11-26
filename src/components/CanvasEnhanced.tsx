@@ -2,6 +2,7 @@ import { useRef, useEffect, useState, useCallback } from 'react';
 import { useEditorStore } from '../store/editorStore';
 import { toast } from 'sonner';
 import { useTranslation } from '../hooks/useTranslation';
+import { applySharpen, applyColorBalance } from '../utils/imageProcessing';
 
 type DragHandle = 'tl' | 'tr' | 'bl' | 'br' | 'rotate' | 'move' | null;
 type SelectedElement = { type: 'text'; id: string } | { type: 'layer'; id: string } | null;
@@ -57,6 +58,7 @@ export function Canvas() {
     tool,
     brushSettings,
     settings,
+    colorBalance,
   } = useEditorStore();
 
   // Load image when src changes
@@ -261,59 +263,6 @@ export function Canvas() {
     ctx.filter = filters.length > 0 ? filters.join(' ') : 'none';
   }, [adjustments]);
 
-  // Apply sharpen filter using convolution matrix
-  const applySharpen = useCallback((ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, amount: number) => {
-    if (amount === 0) return;
-    
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const pixels = imageData.data;
-    const width = canvas.width;
-    const height = canvas.height;
-    
-    // Create output buffer
-    const output = new Uint8ClampedArray(pixels);
-    
-    // Sharpen kernel (convolution matrix)
-    // Amount scales the effect
-    const divisor = amount / 25; // Scale 0-100 to reasonable values
-    const kernel = [
-      0, -divisor, 0,
-      -divisor, 1 + 4 * divisor, -divisor,
-      0, -divisor, 0
-    ];
-    
-    // Apply convolution
-    for (let y = 1; y < height - 1; y++) {
-      for (let x = 1; x < width - 1; x++) {
-        for (let c = 0; c < 3; c++) { // RGB channels only, skip alpha
-          let sum = 0;
-          
-          // Apply kernel
-          sum += pixels[((y - 1) * width + (x - 1)) * 4 + c] * kernel[0];
-          sum += pixels[((y - 1) * width + x) * 4 + c] * kernel[1];
-          sum += pixels[((y - 1) * width + (x + 1)) * 4 + c] * kernel[2];
-          sum += pixels[(y * width + (x - 1)) * 4 + c] * kernel[3];
-          sum += pixels[(y * width + x) * 4 + c] * kernel[4];
-          sum += pixels[(y * width + (x + 1)) * 4 + c] * kernel[5];
-          sum += pixels[((y + 1) * width + (x - 1)) * 4 + c] * kernel[6];
-          sum += pixels[((y + 1) * width + x) * 4 + c] * kernel[7];
-          sum += pixels[((y + 1) * width + (x + 1)) * 4 + c] * kernel[8];
-          
-          output[(y * width + x) * 4 + c] = Math.max(0, Math.min(255, sum));
-        }
-      }
-    }
-    
-    // Copy output back
-    for (let i = 0; i < pixels.length; i++) {
-      if (i % 4 !== 3) { // Skip alpha channel
-        pixels[i] = output[i];
-      }
-    }
-    
-    ctx.putImageData(imageData, 0, 0);
-  }, []);
-
   // Main canvas rendering
   useEffect(() => {
     if (!canvasRef.current || !image || !isImageLoaded) return;
@@ -354,7 +303,10 @@ export function Canvas() {
       ctx.restore();
 
       // Apply sharpen filter
-      applySharpen(ctx, canvas, adjustments.sharpen);
+      applySharpen(ctx, canvas.width, canvas.height, adjustments.sharpen);
+
+      // Apply color balance
+      applyColorBalance(ctx, canvas.width, canvas.height, colorBalance);
 
       // Draw layers
       layers.forEach((layer, index) => {
@@ -537,7 +489,7 @@ export function Canvas() {
     };
 
     renderCanvas();
-  }, [image, adjustments, textBoxes, layers, cropMode, cropRect, applyFilters, tool, selectedLayerId, selectedElement, applySharpen, isImageLoaded]);
+  }, [image, adjustments, textBoxes, layers, cropMode, cropRect, applyFilters, tool, selectedLayerId, selectedElement, applySharpen, isImageLoaded, applyColorBalance, colorBalance]);
 
   // Get mouse position relative to canvas
   const getCanvasCoordinates = useCallback((e: React.MouseEvent | React.TouchEvent | { clientX: number, clientY: number }) => {

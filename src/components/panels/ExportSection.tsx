@@ -8,7 +8,7 @@ import { useTranslation } from '../../hooks/useTranslation';
 type ExportFormat = 'jpg' | 'png' | 'webp' | 'svg';
 
 export function ExportSection() {
-  const { image, adjustments, settings, textBoxes } = useEditorStore();
+  const { image, adjustments, settings, textBoxes, colorBalance } = useEditorStore();
   const { t, language } = useTranslation();
   
   // Initialize from settings
@@ -32,7 +32,7 @@ export function ExportSection() {
     setIsExporting(true);
     
     try {
-      await exportImage(image, adjustments, {
+      await exportImage(image, adjustments, colorBalance, {
         format,
         quality,
         scale,

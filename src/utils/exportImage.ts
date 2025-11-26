@@ -1,5 +1,7 @@
 import { toast } from 'sonner';
 import { getTranslation, type Language } from './translations';
+import { ColorBalance } from '../store/editorStore';
+import { applySharpen, applyColorBalance } from './imageProcessing';
 
 export interface ExportOptions {
   format: 'jpg' | 'png' | 'webp' | 'svg';
@@ -45,6 +47,7 @@ export interface TextBox {
 export async function exportImage(
   image: ImageData,
   adjustments: Adjustments,
+  colorBalance: ColorBalance,
   options: ExportOptions,
   textBoxes?: TextBox[]
 ): Promise<void> {
@@ -101,6 +104,10 @@ export async function exportImage(
     // Draw scaled image
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
     ctx.restore();
+
+    // Apply pixel manipulation filters
+    applySharpen(ctx, canvas.width, canvas.height, adjustments.sharpen);
+    applyColorBalance(ctx, canvas.width, canvas.height, colorBalance);
 
     // Draw text boxes if provided
     if (textBoxes && textBoxes.length > 0) {
@@ -160,13 +167,14 @@ export async function exportImage(
 export async function quickExport(
   image: ImageData,
   adjustments: Adjustments,
+  colorBalance: ColorBalance,
   defaultFormat: 'jpg' | 'png' | 'webp' | 'svg' = 'png',
   defaultQuality: number = 90,
   textBoxes?: TextBox[],
   language: Language = 'vi'
 ): Promise<void> {
   try {
-    await exportImage(image, adjustments, {
+    await exportImage(image, adjustments, colorBalance, {
       format: defaultFormat,
       quality: defaultQuality,
       scale: 1,
